@@ -9,6 +9,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 1.0.1 extras: re-arm the untrusted Wi-Fi watcher after reboot/update. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Only requested when the user picks "trusted networks" mode: Android hides the Wi-Fi name (SSID) without it. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <!-- Android uses this declaration for its developer-options app picker. -->
     <uses-permission
         android:name="android.permission.ACCESS_MOCK_LOCATION"
@@ -113,6 +119,19 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/home_widget_info" />
+        </receiver>
+
+        <!-- 1.0.1 extras: untrusted Wi-Fi auto-connect (PendingIntent network callback). -->
+        <receiver
+            android:name=".extras.UntrustedWifiReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".extras.ExtrasBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
         </receiver>
 
         <!--

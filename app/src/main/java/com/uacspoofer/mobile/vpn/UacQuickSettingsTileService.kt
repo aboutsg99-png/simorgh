@@ -23,6 +23,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class UacQuickSettingsTileService : TileService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -49,8 +50,8 @@ class UacQuickSettingsTileService : TileService() {
 
     override fun onClick() {
         super.onClick()
-        val action = Runnable { handleTileClick() }
-        if (isLocked) unlockAndRun(action) else action.run()
+        val action = Runnable { runCatching { handleTileClick() } }
+        runCatching { if (isLocked) unlockAndRun(action) else action.run() }
     }
 
     override fun onDestroy() {
@@ -72,21 +73,51 @@ class UacQuickSettingsTileService : TileService() {
         }
     }
 
-    private fun connect() {
-        val proxyMode = AdvancedSettingsStore(this).snapshot().connectionMode == CONNECTION_MODE_PROXY
-        val needsVpnPermission = !proxyMode && VpnService.prepare(this) != null
-        val needsNotificationPermission =
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
-                PackageManager.PERMISSION_GRANTED
+    @Volatile private var connectPending = false
 
-        if (needsVpnPermission || needsNotificationPermission) {
-            openPermissionFlow()
-            return
+    /**
+     * Prefs and VpnService.prepare() are read off the main thread so a tap on
+     * the tile never stalls System UI; only the quick state change and service
+     * start happen back on the main thread.
+     */
+    private fun connect() {
+        if (connectPending) return
+        connectPending = true
+        serviceScope.launch {
+            try {
+                val needs = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val proxyMode = AdvancedSettingsStore(this@UacQuickSettingsTileService).snapshot()
+                            .connectionMode == CONNECTION_MODE_PROXY
+                        val needsVpnPermission = !proxyMode &&
+                            VpnService.prepare(this@UacQuickSettingsTileService) != null
+                        val needsNotificationPermission =
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                ContextCompat.checkSelfPermission(
+                                    this@UacQuickSettingsTileService,
+                                    Manifest.permission.POST_NOTIFICATIONS,
+                                ) != PackageManager.PERMISSION_GRANTED
+                        needsVpnPermission || needsNotificationPermission
+                    }.getOrDefault(true) // unknown -> let the app handle it
+                }
+                if (needs) {
+                    openPermissionFlow()
+                    return@launch
+                }
+                if (!ConnectionStateStore.tryBeginConnect()) return@launch
+                runCatching { VpnController.start(this@UacQuickSettingsTileService) }
+                    .onFailure {
+                        ConnectionStateStore.markError()
+                        // e.g. background start refused: finish the connect inside the app.
+                        openPermissionFlow()
+                    }
+            } catch (error: Throwable) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                runCatching { ConnectionStateStore.markError() }
+            } finally {
+                connectPending = false
+            }
         }
-        if (!ConnectionStateStore.tryBeginConnect()) return
-        runCatching { VpnController.start(this) }
-            .onFailure { ConnectionStateStore.markError() }
     }
 
     private fun disconnect() {
@@ -96,6 +127,10 @@ class UacQuickSettingsTileService : TileService() {
     }
 
     private fun openPermissionFlow() {
+        runCatching { launchPermissionFlow() }
+    }
+
+    private fun launchPermissionFlow() {
         val intent = Intent(this, MainActivity::class.java)
             .putExtra(MainActivity.EXTRA_CONNECT_FROM_QUICK_TILE, true)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -114,6 +149,10 @@ class UacQuickSettingsTileService : TileService() {
     }
 
     private fun updateTile(state: ConnectionState) {
+        runCatching { renderTile(state) }
+    }
+
+    private fun renderTile(state: ConnectionState) {
         val tile = qsTile ?: return
         val status = when (state) {
             ConnectionState.CONNECTED -> getString(R.string.quick_settings_tile_connected)
