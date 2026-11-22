@@ -165,10 +165,6 @@ private fun ExtrasRow(
     }
 }
 
-private fun Modifier.clip(RoundedCornerShape(12.dp)): Modifier = this.then(
-    androidx.compose.ui.draw.clip(Modifier, RoundedCornerShape(12.dp)),
-)
-
 @Composable
 private fun HelpText(text: String, color: Color = UacColors.TextSecondary) {
     Text(text, color = color, fontSize = 13.sp, lineHeight = 21.sp, modifier = Modifier.fillMaxWidth())
