@@ -98,12 +98,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Fetch Robolectric android-all (SDK 34)
         run: |
-          mkdir -p "$RUNNER_TEMP/robo"
           v=14-robolectric-10818077-i7
-          curl -fL --retry 5 --retry-delay 10 --retry-all-errors -o "$RUNNER_TEMP/robo/android-all-instrumented-$v.jar" \
+          d="$HOME/.m2/repository/org/robolectric/android-all-instrumented/$v"
+          mkdir -p "$d"
+          curl -fL --retry 5 --retry-delay 10 --retry-all-errors -o "$d/android-all-instrumented-$v.jar" \
             "https://repo1.maven.org/maven2/org/robolectric/android-all-instrumented/$v/android-all-instrumented-$v.jar"
-          ls -l "$RUNNER_TEMP/robo"
-          echo "ROBOLECTRIC_DEPS_DIR=$RUNNER_TEMP/robo" >> "$GITHUB_ENV"
+          ls -l "$d"
       - name: Render shell screenshots
         run: |
           chmod +x gradlew

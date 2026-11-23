@@ -307,10 +307,10 @@ tasks.withType<Test>().configureEach {
     systemProperty("robolectric.graphicsMode", if (arm) "LEGACY" else "NATIVE")
     // Without the Roborazzi Gradle plugin, captureRoboImage only writes PNGs in record mode.
     systemProperty("roborazzi.test.record", "true")
-    // CI pre-downloads the android-all jar (with retries) so Robolectric does not fetch it mid-test.
-    System.getenv("ROBOLECTRIC_DEPS_DIR")?.takeIf { it.isNotBlank() }?.let { dir ->
-        systemProperty("robolectric.offline", "true")
-        systemProperty("robolectric.dependency.dir", dir)
+    // CI seeds the android-all jar into ~/.m2 (with curl retries), so Robolectric finds it locally.
+    testLogging {
+        showStandardStreams = true
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
     maxHeapSize = "2g"
 }
