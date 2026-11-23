@@ -91,3 +91,18 @@ The manual ClientHello fragmentation presets are adapted from [patterniha/Server
 - Bundled license: `app/src/main/assets/byedpi-LICENSE.txt`
 - Build script: `scripts/vendor-byedpi.ps1`
 - Upstream: https://github.com/hufrea/byedpi
+
+## sing-box (Vauth MASQUE fork)
+
+- Version: `v1.0.0-masque`
+- Commit: `9be46c8d5c37b5832a879ec78b2c8d75f3286c20`
+- Purpose: MASQUE / HTTP CONNECT client for the Rubah engine, run as the separate executable `libfoxybox.so` (arm64-v8a), built in CI with tags `with_quic,with_utls`
+- License: GPL-3.0-or-later
+- Upstream: https://github.com/Vauth/sing-box (fork of https://github.com/SagerNet/sing-box)
+- Source: the exact tag above; it is invoked as a separate process and is not linked into the app
+
+## FoxyVPN
+
+- Purpose: Firefox account sign-in, server directory and proxy pass flow used by the Rubah engine (adapted Kotlin code under `engine/foxy`)
+- License: MIT
+- Upstream: https://github.com/Vauth/FoxyVPN

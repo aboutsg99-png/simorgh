@@ -11,6 +11,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Pets
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.text.font.FontWeight
@@ -90,6 +92,7 @@ internal fun EngineMode.identityAccent(): Color = when (this) {
     EngineMode.TOR_WEBTUNNEL -> Color(0xFFE0C4FF)
     EngineMode.UAC_POW -> Color(0xFF6FF6D0)
     EngineMode.UAC_DIRECT -> Color(0xFFFFC46B)
+    EngineMode.FOXY_FIREFOX -> Color(0xFFFF9A5C)
 }
 
 internal fun EngineMode.toHomeRemoteSlot(): HomeRemoteSlot = when (this) {
@@ -97,6 +100,7 @@ internal fun EngineMode.toHomeRemoteSlot(): HomeRemoteSlot = when (this) {
     EngineMode.TOR_WEBTUNNEL -> HomeRemoteSlot.EngineTor
     EngineMode.UAC_POW -> HomeRemoteSlot.EnginePow
     EngineMode.UAC_DIRECT -> HomeRemoteSlot.EngineDirect
+    EngineMode.FOXY_FIREFOX -> HomeRemoteSlot.Other
 }
 
 @Composable
@@ -105,6 +109,7 @@ internal fun EngineMode.switchContentDescription(): String = when (this) {
     EngineMode.TOR_WEBTUNNEL -> homeText("Sayeh engine", "موتور تور")
     EngineMode.UAC_POW -> homeText("Shahpar engine", "موتور شاهپر")
     EngineMode.UAC_DIRECT -> homeText("Tir engine", "موتور دایرکت")
+    EngineMode.FOXY_FIREFOX -> homeText("Rubah engine (Firefox VPN)", "موتور روباه (وی‌پی‌ان فایرفاکس)")
 }
 
 private fun EngineMode.identityIcon(): ImageVector = when (this) {
@@ -112,6 +117,7 @@ private fun EngineMode.identityIcon(): ImageVector = when (this) {
     EngineMode.TOR_WEBTUNNEL -> TorOnionIcon
     EngineMode.UAC_POW -> PowHexIcon
     EngineMode.UAC_DIRECT -> DirectArrowIcon
+    EngineMode.FOXY_FIREFOX -> Icons.Outlined.Pets
 }
 
 private fun EngineMode.shortName(): String = when (this) {
@@ -119,6 +125,7 @@ private fun EngineMode.shortName(): String = when (this) {
     EngineMode.TOR_WEBTUNNEL -> "Sayeh"
     EngineMode.UAC_POW -> "Shahpar"
     EngineMode.UAC_DIRECT -> "Tir"
+    EngineMode.FOXY_FIREFOX -> "Rubah"
 }
 
 /**

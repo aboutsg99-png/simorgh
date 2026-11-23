@@ -68,6 +68,9 @@ object DomesticDirect {
         return false
     }
 
+    /** Every Iranian suffix currently known (fallback list + geosite category-ir), for other engines' routers. */
+    fun suffixSnapshot(): Set<String> = synchronized(lock) { HashSet(suffixes).apply { addAll(FALLBACK) } }
+
     fun ensure(context: Context) {
         DirectDomainWhitelist.get(context)
         GeoAssets.ensure(context)
