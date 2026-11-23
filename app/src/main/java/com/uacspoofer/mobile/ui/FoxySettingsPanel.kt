@@ -97,8 +97,8 @@ internal fun FoxyAccountCard(
                 val max = status.quotaMax
                 if (remaining != null) {
                     Text(
-                        homeText("Quota left: ", "سهمیه‌ی باقی‌مانده: ") + homeLtr(formatBytes(remaining)) +
-                            (if (max != null) " / " + homeLtr(formatBytes(max)) else ""),
+                        homeText("Quota left: ", "سهمیه‌ی باقی‌مانده: ") + homeLtr(formatFoxyBytes(remaining)) +
+                            (if (max != null) " / " + homeLtr(formatFoxyBytes(max)) else ""),
                         color = UacColors.TextSecondary,
                         fontSize = 11.sp,
                     )
@@ -165,7 +165,7 @@ internal fun FoxySettingsPanel(
                 fontSize = 12.sp,
             )
             status.tried.forEach { path ->
-                val speed = path.bytesPerSecond?.let { formatBytes(it) + "/s" } ?: "-"
+                val speed = path.bytesPerSecond?.let { formatFoxyBytes(it) + "/s" } ?: "-"
                 val latency = path.latencyMs?.let { "$it ms" } ?: "-"
                 Text(
                     homeLtr("${FoxyProtocol.labelFor(path.version)}  $latency  $speed") +
@@ -201,7 +201,7 @@ internal fun FoxyChip(
     }
 }
 
-internal fun formatBytes(bytes: Long): String {
+internal fun formatFoxyBytes(bytes: Long): String {
     val kb = 1024.0
     return when {
         bytes >= kb * kb * kb -> String.format(java.util.Locale.US, "%.1f GB", bytes / (kb * kb * kb))
