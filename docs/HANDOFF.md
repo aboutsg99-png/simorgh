@@ -67,4 +67,7 @@ round-2 connect states, map card, fastest list and engines page).
 See the bottom of this file (kept current by whoever works on it).
 
 <!-- STATUS -->
-- Work in progress; see the latest commit message and CI run.
+- 2026-11-24: 1.0.2 (versionName 1.0.2 / versionCode 3) committed to main: 82761ff (code) + fe659e1 (docs). Main run 45287990715 green on first try; artifact Simorgh-apk (release-signed, arm64-v8a, includes libfoxybox.so).
+- Follow-up commit: Test tasks set `roborazzi.test.record=true` so the CI `shots` job actually writes app/build/shots/*.png (first run passed but uploaded nothing); this STATUS update rides on it.
+- No tag or GitHub Release for 1.0.2 yet (CI publishes the APK to the apk-builds branch on main pushes).
+- Not device-tested: new shell UI, world map, fastest servers, speed test (Ookla/Shatel), auto engine, power modes, notification/country-label fixes.

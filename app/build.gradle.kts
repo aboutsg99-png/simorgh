@@ -305,5 +305,7 @@ tasks.withType<Test>().configureEach {
     // still runs in LEGACY mode, which catches crashes but renders nothing useful.
     val arm = System.getProperty("os.arch").orEmpty().contains("aarch64")
     systemProperty("robolectric.graphicsMode", if (arm) "LEGACY" else "NATIVE")
+    // Without the Roborazzi Gradle plugin, captureRoboImage only writes PNGs in record mode.
+    systemProperty("roborazzi.test.record", "true")
     maxHeapSize = "2g"
 }
