@@ -284,9 +284,11 @@ internal fun SettingsScreen(
                         )
                     }
                     AutoConnectSettingsRow(showDivider = true)
+                    UntrustedWifiSettingsRow(showDivider = true)
                     LanShareSettingsRow(showDivider = true)
                     QuicBlockSettingsRow(showDivider = true)
                     ManualDirectDomainsSettingsRow(showDivider = true)
+                    DataCapSettingsRow(showDivider = true)
                     TrafficUsageSettingsRow(showDivider = false)
                 }
             }
@@ -302,6 +304,7 @@ internal fun SettingsScreen(
             item(key = SettingsSection.TOOLS) {
                 SettingsGroup(homeText("Tools and maintenance", "ابزارها و نگهداری")) {
                     SettingsBackupRows(isPersian = isPersian)
+                    SiteReachabilitySettingsRow(showDivider = true)
                     CrashReportSettingsRow(showDivider = true)
                     QuickSettingsTileRow(
                         notice = tileNotice,

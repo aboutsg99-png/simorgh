@@ -19,5 +19,6 @@ class UacApplication : Application() {
         AppThemeStore.get(this)
         EngineModeStore.get(this)
         UacHomeWidgetProvider.bind(this)
+        com.uacspoofer.mobile.extras.SimorghExtras.init(this)
     }
 }

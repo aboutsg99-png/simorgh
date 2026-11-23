@@ -29,4 +29,10 @@
     <string name="connect_panel_expand">باز کردن</string>
     <string name="connect_panel_reopen">نمایش وضعیت اتصال</string>
     <string name="connect_panel_count">%1$d/%2$d</string>
+    <string name="quick_settings_tile_label">اتصال سریع</string>
+    <string name="quick_settings_tile_connected">وصل</string>
+    <string name="quick_settings_tile_connecting">در حال اتصال</string>
+    <string name="quick_settings_tile_disconnecting">در حال قطع</string>
+    <string name="quick_settings_tile_disconnected">قطع</string>
+    <string name="quick_settings_tile_error">اتصال ناموفق</string>
 </resources>
