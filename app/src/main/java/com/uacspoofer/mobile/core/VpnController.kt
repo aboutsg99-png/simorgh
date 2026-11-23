@@ -36,6 +36,13 @@ object VpnController {
         context.startService(intent)
     }
 
+    fun applyFoxyCountry(context: Context) {
+        val state = ConnectionStateStore.state.value
+        if (state != ConnectionState.CONNECTED) return
+        val intent = Intent(context, UacVpnService::class.java).setAction(UacVpnService.ACTION_APPLY_FOXY_COUNTRY)
+        context.startService(intent)
+    }
+
     fun applyPowExit(context: Context) {
         val state = ConnectionStateStore.state.value
         if (state != ConnectionState.CONNECTED && state != ConnectionState.CONNECTING) return

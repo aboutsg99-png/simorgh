@@ -249,6 +249,7 @@ class UacVpnService : VpnService() {
             ACTION_SWITCH_PROFILE -> requestSwitchProfile()
             ACTION_APPLY_TOR_EXIT -> requestApplyTorExit()
             ACTION_APPLY_POW_EXIT -> requestApplyPowExit()
+            ACTION_APPLY_FOXY_COUNTRY -> requestApplyFoxyCountry()
             ACTION_APPLY_DIRECT_EXIT -> requestApplyDirectExit()
             ACTION_REFRESH_LATENCY -> requestLatencyRefresh()
             ACTION_ROUTE_MTU_PROBE -> requestRouteMtuProbe(intent.getStringExtra(EXTRA_ROUTE_PROBE_ID), startId)
@@ -1692,6 +1693,15 @@ class UacVpnService : VpnService() {
         )
     }
 
+    /** Rubah country changed while connected: reconnect through the normal recovery path. */
+    private fun requestApplyFoxyCountry() {
+        if (!activeEngine.isFoxy || !resourcesActive) return
+        if (ConnectionStateStore.state.value != ConnectionState.CONNECTED) return
+        val country = FoxyEngineStore.get(this).snapshot().countryCode.ifBlank { "fastest" }
+        AppLogRepository.info(LogSource.SERVICE, "[FOXY] reconnecting for country=$country")
+        scheduleRuntimeRecovery(generation.get(), "Rubah country changed", penalizeCandidate = false)
+    }
+
     private fun requestApplyPowExit() {
         if (!engineModeStore.snapshot().isPow) return
         val state = ConnectionStateStore.state.value
@@ -2898,6 +2908,7 @@ class UacVpnService : VpnService() {
         const val ACTION_SWITCH_PROFILE = "com.uacspoofer.mobile.SWITCH_PROFILE"
         const val ACTION_APPLY_TOR_EXIT = "com.uacspoofer.mobile.APPLY_TOR_EXIT"
         const val ACTION_APPLY_POW_EXIT = "com.uacspoofer.mobile.APPLY_POW_EXIT"
+        const val ACTION_APPLY_FOXY_COUNTRY = "com.uacspoofer.mobile.APPLY_FOXY_COUNTRY"
         const val ACTION_APPLY_DIRECT_EXIT = "com.uacspoofer.mobile.APPLY_DIRECT_EXIT"
         const val ACTION_APPLY_NETWORK_GUARD = "com.uacspoofer.mobile.APPLY_NETWORK_GUARD"
         const val ACTION_APPLY_DIRECT_WHITELIST = "com.uacspoofer.mobile.APPLY_DIRECT_WHITELIST"

@@ -74,7 +74,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.uacspoofer.mobile.core.ConnectionState
 import com.uacspoofer.mobile.core.ConnectionStateStore
+import com.uacspoofer.mobile.core.VpnController
+import com.uacspoofer.mobile.engine.foxy.FoxyAccount
 import com.uacspoofer.mobile.engine.foxy.FoxyEngineStore
+import com.uacspoofer.mobile.engine.foxy.FoxyErrors
+import com.uacspoofer.mobile.engine.foxy.FoxyStatusStore
 import com.uacspoofer.mobile.engine.foxy.FoxyPing
 import com.uacspoofer.mobile.engine.foxy.FoxyPingResult
 import com.uacspoofer.mobile.engine.foxy.RECOMMENDED_COUNTRY_CODE
@@ -106,6 +110,12 @@ internal fun FoxyCountryScreen(onMenuClick: () -> Unit) {
     val store = remember(context) { FoxyEngineStore.get(context) }
     val client = remember(context) { ServerListClient(context.applicationContext) }
     val settings by store.settings.collectAsStateWithLifecycle()
+    val account = remember(context) { FoxyAccount.get(context) }
+    val accountStatus by account.status.collectAsStateWithLifecycle()
+    val foxyStatus by FoxyStatusStore.status.collectAsStateWithLifecycle()
+    var signingIn by rememberSaveable { mutableStateOf(false) }
+    var accountBusy by remember { mutableStateOf(false) }
+    var signInMessage by remember { mutableStateOf<String?>(null) }
     val connectionState by ConnectionStateStore.state.collectAsStateWithLifecycle()
     val nameLocale = if (isPersian) Locale("fa") else Locale.ENGLISH
     var query by rememberSaveable { mutableStateOf("") }
@@ -190,11 +200,12 @@ internal fun FoxyCountryScreen(onMenuClick: () -> Unit) {
             countries.firstOrNull { it.code.equals(next.countryCode, ignoreCase = true) }?.let { localName(it) }
                 ?: next.countryCode
         }
-        val live = connectionState == ConnectionState.CONNECTED || connectionState == ConnectionState.CONNECTING
+        val live = connectionState == ConnectionState.CONNECTED
+        if (live) VpnController.applyFoxyCountry(context)
         notify(
             when {
-                live && isPersian -> "$name انتخاب شد؛ برای اعمال، اتصال را قطع و دوباره وصل کنید"
-                live -> "$name selected; disconnect and reconnect to apply"
+                live && isPersian -> "در حال اتصال مجدد به $name…"
+                live -> "Reconnecting to $name…"
                 isPersian -> "$name برای اتصال بعدی انتخاب شد"
                 else -> "$name selected for the next connection"
             },
@@ -202,6 +213,46 @@ internal fun FoxyCountryScreen(onMenuClick: () -> Unit) {
     }
 
     LaunchedEffect(Unit) { load(forceNetwork = false) }
+    LaunchedEffect(Unit) {
+        accountBusy = true
+        try {
+            account.refreshStatus()
+        } finally {
+            accountBusy = false
+        }
+    }
+
+    if (signingIn) {
+        FoxySignInScreen(
+            startUrl = remember { account.loginUrl() },
+            busy = accountBusy,
+            message = signInMessage,
+            onSessionCaptured = { sessionToken ->
+                if (!accountBusy) {
+                    scope.launch {
+                        accountBusy = true
+                        signInMessage = null
+                        val result = try {
+                            account.completeSignIn(sessionToken)
+                        } finally {
+                            accountBusy = false
+                        }
+                        result
+                            .onSuccess {
+                                signingIn = false
+                                notify(if (isPersian) "ورود به حساب فایرفاکس انجام شد" else "Signed in to Firefox account")
+                            }
+                            .onFailure { signInMessage = FoxyErrors.persian(it) }
+                    }
+                }
+            },
+            onCancel = {
+                signingIn = false
+                signInMessage = null
+            },
+        )
+        return
+    }
     LaunchedEffect(query) { listState.scrollToItem(0) }
 
     val visible = remember(countries, query, isPersian) {
@@ -335,6 +386,34 @@ internal fun FoxyCountryScreen(onMenuClick: () -> Unit) {
                             ),
                         ) {
                             if (query.isBlank()) {
+                                item(key = "account") {
+                                    FoxyAccountCard(
+                                        status = accountStatus,
+                                        busy = accountBusy,
+                                        onSignIn = {
+                                            signInMessage = null
+                                            signingIn = true
+                                        },
+                                        onSignOut = {
+                                            scope.launch {
+                                                accountBusy = true
+                                                try {
+                                                    account.signOut()
+                                                } finally {
+                                                    accountBusy = false
+                                                }
+                                            }
+                                        },
+                                    )
+                                }
+                                item(key = "settings") {
+                                    FoxySettingsPanel(
+                                        settings = settings,
+                                        status = foxyStatus,
+                                        onProtocol = { protocol -> store.update { it.copy(protocol = protocol) } },
+                                        onFallback = { fallback -> store.update { it.copy(fallback = fallback) } },
+                                    )
+                                }
                                 item(key = "fastest") {
                                     FoxyCountryRow(
                                         title = homeText("Fastest server", "سریع‌ترین سرور"),
