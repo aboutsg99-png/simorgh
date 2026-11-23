@@ -137,6 +137,10 @@ class UacVpnService : VpnService() {
     @Volatile private var activeConnectionMode = CONNECTION_MODE_TUNNEL
     @Volatile private var sessionTunBackend = TunBackend.HEV
     @Volatile private var activeEngine = EngineMode.XRAY_CF
+        set(value) {
+            field = value
+            com.uacspoofer.mobile.simorgh.ActiveEngineStore.publish(value)
+        }
     @Volatile private var aiRoutePlan: com.uacspoofer.mobile.ai.AiRoutePlan? = null
     @Volatile private var aiRouteJob: Job? = null
     @Volatile private var killSwitchFd: ParcelFileDescriptor? = null
@@ -222,11 +226,15 @@ class UacVpnService : VpnService() {
         AutoConnectCoordinator.ensureWatching(this)
         serviceScope.launch {
             combine(
-                ExitIpInfoRepository.get(this@UacVpnService).state,
+                com.uacspoofer.mobile.simorgh.LocationState.current,
                 PowStatusStore.status,
                 ConnectionStateStore.state,
-            ) { _, _, connection ->
-                if (connection == ConnectionState.CONNECTED) connectedCountry()?.countryCode else null
+            ) { location, _, connection ->
+                if (connection == ConnectionState.CONNECTED) {
+                    "${connectedCountry()?.countryCode}|${location.engine.id}|${location.exitVerified}"
+                } else {
+                    null
+                }
             }
                 .distinctUntilChanged()
                 .collect { code ->
@@ -2769,7 +2777,7 @@ class UacVpnService : VpnService() {
                 views.setTextViewText(R.id.notification_down, traffic.first)
                 views.setTextViewText(R.id.notification_up, traffic.second)
             }
-            val marked = country.flagEmoji?.let { "$it  $label" } ?: label
+            val marked = label
             builder
                 .setContentTitle(com.uacspoofer.mobile.logging.BrandText.apply("$marked  ·  $message"))
                 .setContentText(com.uacspoofer.mobile.logging.BrandText.apply(detail ?: message))
@@ -2814,16 +2822,15 @@ class UacVpnService : VpnService() {
         // After a Rubah fallback the running engine differs from the selected one.
         val engine = if (resourcesActive) activeEngine else engineModeStore.snapshot()
         return when {
-            engine.isFoxy -> "Rubah"
-            engine.isTor -> "Sayeh"
-            engine.isPow -> "Shahpar"
-            engine.isDirect -> "Tir"
-            else -> "Parvaz"
+            engine.isFoxy -> "روباه"
+            engine.isTor -> "سایه"
+            engine.isPow -> "شاهپر"
+            engine.isDirect -> "تیر"
+            else -> "پرواز"
         }
     }
 
-    private fun engineConnectedLabel(): String =
-        getString(R.string.notification_engine_connected, engineShortName())
+    private fun engineConnectedLabel(): String = "متصل · موتور ${engineShortName()}"
 
     /** Country shown beside the connected title. Exit IP wins once the lookup matches this session. */
     private fun connectedCountryFor(textRes: Int): CountryMetadata? {
@@ -2833,29 +2840,14 @@ class UacVpnService : VpnService() {
         return connectedCountry()
     }
 
+    /**
+     * Country of the live tunnel: the exit country the IP check verified through the tunnel,
+     * else the country the running engine itself reports. Never the user's selection.
+     */
     private fun connectedCountry(): CountryMetadata? {
-        val engine = engineModeStore.snapshot()
-        if (engine.isDirect) {
-            val verified = DirectStatusStore.status.value.exitCountryCode
-            if (verified.isNotEmpty()) return CountryMetadata.resolve(verified, null)
-        }
-        val exitState = ExitIpInfoRepository.get(this).state.value
-        if (exitState.profileId == currentExitLookupId()) {
-            val fromExit = exitState.info
-                ?.let { CountryMetadata.resolve(it.countryCode, it.country) }
-                ?.takeIf { it.isKnown }
-            if (fromExit != null) return fromExit
-        }
-        val raw = when {
-            engine.isPow -> PowStatusStore.status.value.exitRegion.ifBlank {
-                powEngineStore.snapshot().exitCountryCode
-            }
-            engine.isTor -> torEngineStore.snapshot().exitCountryCode
-            engine.isDirect -> ""
-            engine.isFoxy -> FoxyStatusStore.status.value.countryCode.takeIf { it.length == 2 }.orEmpty()
-            else -> profileStore.selectedProfile().country.countryCode
-        }
-        return CountryMetadata.resolve(raw, null).takeIf { it.isKnown }
+        val location = com.uacspoofer.mobile.simorgh.LocationState.current.value
+        val code = location.connectedCode
+        return CountryMetadata.resolve(code, null).takeIf { code.isNotEmpty() && it.isKnown }
     }
 
     private fun currentExitLookupId(): String {

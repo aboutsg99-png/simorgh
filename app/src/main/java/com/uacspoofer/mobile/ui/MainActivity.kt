@@ -109,7 +109,7 @@ class MainActivity : ComponentActivity() {
             val state = ConnectionStateStore.state.collectAsStateWithLifecycle().value
             UacSniSpooferTheme {
                 TvFocusProvider {
-                    MainScreen(
+                    com.uacspoofer.mobile.ui.shell.SimorghShell(
                         state = state,
                         onConnect = ::beginConnect,
                         onDisconnect = ::beginDisconnect,
@@ -219,7 +219,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun beginDisconnect() {
-        if (!ConnectionStateStore.tryBeginDisconnect()) return
+        val autoWasRunning = com.uacspoofer.mobile.simorgh.auto.AutoConnector.running()
+        com.uacspoofer.mobile.simorgh.auto.AutoConnector.cancel()
+        if (!ConnectionStateStore.tryBeginDisconnect()) {
+            if (autoWasRunning) runCatching { VpnController.stop(this) }
+            return
+        }
         try {
             VpnController.stop(this)
         } catch (_: Throwable) {

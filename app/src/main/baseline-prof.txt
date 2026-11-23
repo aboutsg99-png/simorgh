@@ -1,0 +1,18 @@
+# Hand-written baseline profile for 1.0.2 (AGP compiles it into the APK; ProfileInstaller
+# installs it on first launch). Covers the startup path and the new shell screens.
+HSPLcom/uacspoofer/mobile/UacApplication;->**(**)**
+HSPLcom/uacspoofer/mobile/ui/MainActivity;->**(**)**
+HSPLcom/uacspoofer/mobile/ui/shell/**;->**(**)**
+HSPLcom/uacspoofer/mobile/simorgh/**;->**(**)**
+HSPLcom/uacspoofer/mobile/core/**;->**(**)**
+HSPLcom/uacspoofer/mobile/ui/theme/**;->**(**)**
+HSPLandroidx/compose/runtime/**;->**(**)**
+HSPLandroidx/compose/ui/**;->**(**)**
+HSPLandroidx/compose/foundation/**;->**(**)**
+HSPLandroidx/compose/animation/**;->**(**)**
+HSPLandroidx/compose/material3/**;->**(**)**
+HSPLandroidx/lifecycle/**;->**(**)**
+HSPLkotlinx/coroutines/**;->**(**)**
+Lcom/uacspoofer/mobile/ui/shell/**;
+Lcom/uacspoofer/mobile/simorgh/**;
+Landroidx/compose/**;

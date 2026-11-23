@@ -8,7 +8,17 @@ import com.uacspoofer.mobile.settings.NetworkGuardStore
 import com.uacspoofer.mobile.vpn.UacVpnService
 
 object VpnController {
+    /** Connect: through Auto when it is on, else with the selected engine. */
     fun start(context: Context) {
+        if (com.uacspoofer.mobile.simorgh.auto.AutoConnector.shouldHandle(context)) {
+            com.uacspoofer.mobile.simorgh.auto.AutoConnector.start(context)
+            return
+        }
+        startEngine(context)
+    }
+
+    /** Starts the service with whatever engine is selected right now. */
+    fun startEngine(context: Context) {
         if (!com.uacspoofer.mobile.security.IntegrityGuard.isTrusted(context)) return
         val intent = Intent(context, UacVpnService::class.java).setAction(UacVpnService.ACTION_CONNECT)
         ContextCompat.startForegroundService(context, intent)

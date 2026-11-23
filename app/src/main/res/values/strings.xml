@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Simorgh</string>
-    <string name="vpn_channel_name">Simorgh Connection</string>
-    <string name="vpn_channel_description">Tunnel and proxy connection status</string>
-    <string name="vpn_connecting_notification">Connecting with Simorgh…</string>
-<string name="vpn_connected_notification">Simorgh connected</string>
-    <string name="notification_engine_connected">%1$s connected</string>
-    <string name="notification_engine_state">connected</string>
-    <string name="proxy_connecting_notification">Starting local SOCKS5 proxy…</string>
-    <string name="proxy_connected_notification">SOCKS5 proxy connected</string>
-    <string name="vpn_failed_notification">Simorgh connection failed</string>
-    <string name="vpn_kill_switch_notification">Internet blocked · Kill switch is on</string>
-    <string name="notification_disconnect">Disconnect</string>
-    <string name="notification_close">Close</string>
-    <string name="notification_pause">Pause</string>
-    <string name="notification_resume">Resume</string>
-    <string name="vpn_paused_notification">Paused — traffic is not going through the tunnel</string>
-    <string name="proxy_paused_notification">Paused — SOCKS traffic is direct</string>
+    <string name="vpn_channel_name">اتصال سیمرغ</string>
+    <string name="vpn_channel_description">وضعیت اتصال تونل و پراکسی</string>
+    <string name="vpn_connecting_notification">در حال اتصال…</string>
+<string name="vpn_connected_notification">سیمرغ متصل است</string>
+    <string name="notification_engine_connected">%1$s متصل</string>
+    <string name="notification_engine_state">متصل</string>
+    <string name="proxy_connecting_notification">در حال راه‌اندازی پراکسی SOCKS5…</string>
+    <string name="proxy_connected_notification">پراکسی SOCKS5 متصل است</string>
+    <string name="vpn_failed_notification">اتصال ناموفق بود</string>
+    <string name="vpn_kill_switch_notification">اینترنت مسدود است · کیل‌سوییچ روشن است</string>
+    <string name="notification_disconnect">قطع</string>
+    <string name="notification_close">بستن</string>
+    <string name="notification_pause">توقف</string>
+    <string name="notification_resume">ادامه</string>
+    <string name="vpn_paused_notification">متوقف — ترافیک از تونل عبور نمی‌کند</string>
+    <string name="proxy_paused_notification">متوقف — ترافیک SOCKS مستقیم است</string>
     <string name="quick_settings_tile_label">اتصال سریع</string>
     <string name="quick_settings_tile_connected">وصل</string>
     <string name="quick_settings_tile_connecting">در حال اتصال</string>
@@ -24,7 +24,7 @@
     <string name="quick_settings_tile_disconnected">قطع</string>
     <string name="quick_settings_tile_error">اتصال ناموفق</string>
     <string name="home_widget_label">Simorgh</string>
-    <string name="home_widget_description">اتصال، قطع و انتخاب موتور</string>
+    <string name="home_widget_description">اتصال، قطع، کشور و وضعیت</string>
     <string name="settings_backup_title">Backup settings</string>
     <string name="settings_backup_summary">Save theme, language, engines and connection options to a JSON file</string>
     <string name="settings_restore_title">Restore from file</string>

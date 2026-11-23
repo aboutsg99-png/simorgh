@@ -56,19 +56,33 @@ internal object LivePing {
 
     fun timeoutMs(engine: EngineMode): Int = if (engine.isTor) TOR_TIMEOUT_MS else TIMEOUT_MS
 
+    /** Engine whose local SOCKS carries the tunnel: the running one, else the selected one. */
+    fun routeEngine(context: Context): EngineMode {
+        val state = com.uacspoofer.mobile.core.ConnectionStateStore.state.value
+        val running = com.uacspoofer.mobile.simorgh.ActiveEngineStore.engine.value
+        val live = state == com.uacspoofer.mobile.core.ConnectionState.CONNECTED ||
+            state == com.uacspoofer.mobile.core.ConnectionState.CONNECTING
+        return if (live && running != null) running else EngineModeStore.get(context).snapshot()
+    }
+
     fun socksEndpoint(context: Context): Pair<String, Int> {
-        val engine = EngineModeStore.get(context).snapshot()
+        val engine = routeEngine(context)
         val advanced = AdvancedSettingsStore(context).snapshot()
         val proxy = advanced.connectionMode == CONNECTION_MODE_PROXY
         return when {
             engine.isPow -> "127.0.0.1" to if (proxy) advanced.socksPort else PowLiveExit.tunSocksPort()
             engine.isTor -> "127.0.0.1" to TorEngineStore.get(context).snapshot().socksPort
+            engine.isFoxy -> "127.0.0.1" to if (proxy) {
+                advanced.socksPort
+            } else {
+                com.uacspoofer.mobile.engine.foxy.FoxyEngineStore.get(context).snapshot().socksPort
+            }
             else -> advanced.socksAddress.ifBlank { "127.0.0.1" } to advanced.socksPort
         }
     }
 
     fun measure(context: Context): Long? {
-        val engine = EngineModeStore.get(context).snapshot()
+        val engine = routeEngine(context)
         val (host, port) = socksEndpoint(context)
         return measureChip(host, port, timeoutMs(engine))
     }

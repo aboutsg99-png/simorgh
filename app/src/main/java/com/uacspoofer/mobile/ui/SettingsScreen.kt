@@ -305,6 +305,7 @@ internal fun SettingsScreen(
                 SettingsGroup(homeText("Tools and maintenance", "ابزارها و نگهداری")) {
                     SettingsBackupRows(isPersian = isPersian)
                     SiteReachabilitySettingsRow(showDivider = true)
+                    LeakTestSettingsRow(showDivider = true)
                     CrashReportSettingsRow(showDivider = true)
                     QuickSettingsTileRow(
                         notice = tileNotice,

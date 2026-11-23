@@ -45,6 +45,20 @@ class EngineModeStore private constructor(context: Context) {
         return EngineModeChangeResult.APPLIED
     }
 
+    /**
+     * Used only by Auto between attempts, when the service is stopped but the UI still shows
+     * the attempt as connecting. Same side effects as [setMode] without the state check.
+     */
+    @Synchronized
+    fun setModeForAuto(mode: EngineMode) {
+        if (mode == mutableMode.value) return
+        prefs.edit().putString(KEY_MODE, mode.id).apply()
+        mutableMode.value = mode
+        if (!mode.isTor) TorStatusStore.reset()
+        if (!mode.isPow) com.uacspoofer.mobile.engine.pow.PowStatusStore.reset()
+        if (!mode.isDirect) com.uacspoofer.mobile.engine.direct.DirectStatusStore.reset()
+    }
+
     companion object {
         private const val PREFS = "connection_engine_v1"
         private const val KEY_MODE = "engine_mode"

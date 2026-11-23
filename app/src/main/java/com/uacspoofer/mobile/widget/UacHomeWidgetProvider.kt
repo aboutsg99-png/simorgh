@@ -114,23 +114,22 @@ class UacHomeWidgetProvider : AppWidgetProvider() {
                 EngineModeStore.get(app).mode.collect { updateAll(app) }
             }
             scope.launch {
-                TrafficStatsStore.stats.collect { pushMeters(app) }
+                TrafficStatsStore.stats.collect {
+                    if (com.uacspoofer.mobile.simorgh.PowerMode.current(app) != com.uacspoofer.mobile.simorgh.PowerMode.ULTRA) {
+                        pushMeters(app)
+                    }
+                }
             }
             scope.launch {
-                ConnectionMetricsStore.metrics.collect { pushMeters(app) }
+                ConnectionMetricsStore.metrics.collect {
+                    if (com.uacspoofer.mobile.simorgh.PowerMode.current(app) != com.uacspoofer.mobile.simorgh.PowerMode.ULTRA) {
+                        pushMeters(app)
+                    }
+                }
             }
             scope.launch {
-                ExitIpInfoRepository.get(app).state.collect { updateAll(app) }
-            }
-            scope.launch {
-                TorEngineStore.get(app).settings.collect { updateAll(app) }
-            }
-            scope.launch {
-                PowEngineStore.get(app).settings.collect { updateAll(app) }
-            }
-            scope.launch {
-                PowStatusStore.status
-                    .map { it.exitRegion }
+                com.uacspoofer.mobile.simorgh.LocationState.current
+                    .map { it.displayCode + "|" + it.engine.id + "|" + it.selection.countryless }
                     .distinctUntilChanged()
                     .collect { updateAll(app) }
             }
@@ -351,32 +350,19 @@ class UacHomeWidgetProvider : AppWidgetProvider() {
             }
         }
 
+        /** Same source as the home card and notification: verified exit, engine report, selection. */
         private fun widgetCountry(context: Context): WidgetCountry {
-            val engine = EngineModeStore.get(context).snapshot()
             val persian = context.resources.configuration.locales[0].language.equals("fa", ignoreCase = true)
-            val locale = if (persian) Locale("fa") else Locale.ENGLISH
-            if (ConnectionStateStore.state.value == ConnectionState.CONNECTED) {
-                val exit = ExitIpInfoRepository.get(context).state.value.info
-                val fromExit = exit?.let { CountryMetadata.resolve(it.countryCode, it.country) }?.takeIf { it.isKnown }
-                if (fromExit != null) return named(fromExit.countryCode, persian)
-            }
-            if (engine.isDirect) {
+            val location = com.uacspoofer.mobile.simorgh.LocationState.current.value
+            if (location.selection.countryless && location.connectedCode.isEmpty()) {
                 return WidgetCountry(if (persian) "مستقیم" else "Direct", null)
             }
-            if (engine.isTor) {
-                val code = TorEngineStore.get(context).snapshot().exitCountryCode
-                if (code.isBlank()) return WidgetCountry(if (persian) "خودکار" else "Automatic", null)
-                return WidgetCountry(TorExitCountry.displayName(code, locale), CountryFlagResources.drawableFor(code))
+            val code = location.displayCode
+            if (code.isBlank()) {
+                val auto = if (location.engine.isFoxy || location.engine.isXray) "سریع‌ترین" else "خودکار"
+                return WidgetCountry(if (persian) auto else "Automatic", null)
             }
-            if (engine.isPow) {
-                val live = PowStatusStore.status.value.exitRegion
-                val code = live.ifBlank { PowEngineStore.get(context).snapshot().exitCountryCode }
-                if (code.isBlank()) return WidgetCountry(if (persian) "خودکار" else "Automatic", null)
-                return WidgetCountry(PowRegions.name(code, locale), CountryFlagResources.drawableFor(code))
-            }
-            val profileCountry = ProfileStore(context).selectedProfile().country
-            if (!profileCountry.isKnown) return WidgetCountry("—", null)
-            return named(profileCountry.countryCode, persian)
+            return named(code, persian)
         }
 
         private fun named(code: String?, persian: Boolean): WidgetCountry {

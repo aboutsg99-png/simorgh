@@ -39,8 +39,8 @@ android {
         applicationId = "app.simorgh.vpn"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.2"
 
         buildConfigField("boolean", "TV_MODE", "false")
         buildConfigField(
@@ -119,6 +119,8 @@ android {
     }
 
     compileOptions {
+        // java.time is used by traffic/protected-time stores; minSdk 24 needs desugaring.
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -127,6 +129,7 @@ android {
         jvmTarget = "17"
     }
 
+    testOptions { unitTests { isIncludeAndroidResources = true } }
     buildFeatures {
         compose = true
         buildConfig = true
@@ -222,10 +225,17 @@ dependencies {
     implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
     implementation("com.google.zxing:core:3.5.3")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.40.1")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.40.1")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
     testImplementation("org.json:json:20240303")
 }
 
@@ -288,4 +298,12 @@ tasks.matching { it.name == "preReleaseBuild" }.configureEach {
             }
         }
     }
+}
+
+tasks.withType<Test>().configureEach {
+    // Shell screenshots (Robolectric). NATIVE graphics needs x86_64 (CI); elsewhere composition
+    // still runs in LEGACY mode, which catches crashes but renders nothing useful.
+    val arm = System.getProperty("os.arch").orEmpty().contains("aarch64")
+    systemProperty("robolectric.graphicsMode", if (arm) "LEGACY" else "NATIVE")
+    maxHeapSize = "2g"
 }

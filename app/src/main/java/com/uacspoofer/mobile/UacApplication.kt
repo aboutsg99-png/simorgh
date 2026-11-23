@@ -20,5 +20,7 @@ class UacApplication : Application() {
         EngineModeStore.get(this)
         UacHomeWidgetProvider.bind(this)
         com.uacspoofer.mobile.extras.SimorghExtras.init(this)
+        val mainProcess = android.os.Build.VERSION.SDK_INT < 28 || getProcessName() == packageName
+        if (mainProcess) com.uacspoofer.mobile.simorgh.SimorghRuntime.start(this)
     }
 }

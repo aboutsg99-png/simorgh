@@ -119,13 +119,16 @@ import kotlinx.coroutines.delay
 import kotlin.math.abs
 
 @Composable
-fun MainScreen(
+internal fun MainScreen(
     state: ConnectionState,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onSwitchProfile: () -> Unit,
     onMinimize: () -> Unit,
     onCloseApp: () -> Unit,
+    startDestination: DrawerDestination = DrawerDestination.HOME,
+    onExitToShell: (() -> Unit)? = null,
+    checkUpdatesOnStart: Boolean = true,
 ) {
     val context = LocalContext.current
     val profileStore = remember(context) { ProfileStore(context) }
@@ -143,7 +146,13 @@ fun MainScreen(
     val sniMakerController = remember(context.applicationContext) { SniMakerController(context) }
     val routeSpeedTestController = remember(context.applicationContext) { RouteSpeedTestController.get(context) }
     val updateManager = remember(context.applicationContext) { AppUpdateManager(context.applicationContext) }
-    var selectedDestination by rememberSaveable { mutableStateOf(DrawerDestination.HOME) }
+    var selectedDestination by rememberSaveable { mutableStateOf(startDestination) }
+    if (onExitToShell != null) {
+        // Hosted by the 1.0.2 shell: leaving to the old dashboard means going back to the shell.
+        LaunchedEffect(selectedDestination) {
+            if (selectedDestination == DrawerDestination.HOME) onExitToShell()
+        }
+    }
     var themeEditorEnabled by remember { mutableStateOf(false) }
     var openThemeEditor by remember { mutableStateOf(false) }
     // Where Back from PoW settings returns: Settings when opened from there, else the dashboard.
@@ -196,7 +205,7 @@ fun MainScreen(
         }
     }
     LaunchedEffect(updateManager) {
-        performUpdateCheck()
+        if (checkUpdatesOnStart) performUpdateCheck()
     }
     val openDrawer: () -> Unit = { drawerScope.launch { drawerState.open() } }
     val closeDrawer: () -> Unit = { drawerScope.launch { drawerState.close() } }
@@ -470,7 +479,7 @@ fun MainScreen(
                     onCheckForUpdate = checkForUpdates,
                     onUpdate = beginUpdate,
                 )
-                else -> HomeScreenContent(
+                else -> if (onExitToShell == null) HomeScreenContent(
                         state = state,
                         profile = if (homeCountry.isKnown) homeProfile.copy(country = homeCountry) else homeProfile,
                         motionEnabled = homeMotionEnabled && !batterySettings.staticHomeEffects,
@@ -502,7 +511,7 @@ fun MainScreen(
                         },
                     )
             }
-            if (selectedDestination == DrawerDestination.HOME) {
+            if (selectedDestination == DrawerDestination.HOME && onExitToShell == null) {
                 ConnectProgressOverlay(
                     state = state,
                     engine = when {

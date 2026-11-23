@@ -106,3 +106,16 @@ The manual ClientHello fragmentation presets are adapted from [patterniha/Server
 - Purpose: Firefox account sign-in, server directory and proxy pass flow used by the Rubah engine (adapted Kotlin code under `engine/foxy`)
 - License: MIT
 - Upstream: https://github.com/Vauth/FoxyVPN
+
+## Natural Earth
+
+- Data: Admin 0 – Countries, 1:50m (`ne_50m_admin_0_countries`)
+- Purpose: country shapes of the home-screen map, simplified and packed into `app/src/main/assets/map/world50.bin` by `scripts/gen_world_map.py`
+- License: public domain ("Made with Natural Earth. Free vector and raster map data @ naturalearthdata.com")
+- Upstream: https://www.naturalearthdata.com/
+
+## Speed test and IP services (network endpoints, no code)
+
+- Ookla Speedtest.net public server list and server endpoints (`/hello`, `/download`, `/upload`) for the international speed test
+- Shatel LibreSpeed backend (`speed-interior.shatel.ir`) for the domestic speed test
+- DB-IP free API (`api.db-ip.com/v2/free/self`) and Cloudflare `cdn-cgi/trace` for the exit IP and country check

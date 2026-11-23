@@ -74,3 +74,36 @@ jobs:
           git -c user.name=simorgh-ci -c user.email=ci@users.noreply.github.com add -A
           git -c user.name=simorgh-ci -c user.email=ci@users.noreply.github.com commit -qm "APK ${GITHUB_SHA::7}"
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" apk-builds
+
+  shots:
+    # UI screenshots of the 1.0.2 shell rendered with Robolectric (native graphics, x86_64).
+    # Informational only: it never blocks the APK build.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-35 build-tools;35.0.0 ndk;26.3.11579264 cmake;3.22.1'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: ln -sf "$(which python3)" /usr/local/bin/python || true
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Render shell screenshots
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:testDebugUnitTest --tests 'com.uacspoofer.mobile.shot.ShellShots' --no-daemon --stacktrace
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shell-shots
+          path: app/build/shots/*.png
+          retention-days: 14
+

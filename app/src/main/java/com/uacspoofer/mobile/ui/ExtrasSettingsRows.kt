@@ -579,3 +579,28 @@ private fun SiteResultRow(site: SiteReachability.Site, result: SiteReachability.
         Text(statusText, color = statusColor, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.weight(0.6f))
     }
 }
+
+/** Opens browserleaks.com/ip in the browser for a full DNS / WebRTC / IP leak check. */
+@Composable
+internal fun LeakTestSettingsRow(showDivider: Boolean) {
+    val context = LocalContext.current
+    ExtrasRow(
+        icon = Icons.Outlined.NetworkCheck,
+        title = "تست نشت کامل",
+        summary = "IP، DNS و WebRTC در browserleaks.com",
+        active = false,
+        showDivider = showDivider,
+    ) {
+        HelpText("صفحه‌ی browserleaks.com/ip در مرورگر باز می‌شود و IP خروجی، کشور، DNS و نشت WebRTC را نشان می‌دهد.")
+        SmallAction("باز کردن تست", enabled = true) { openLeakTest(context) }
+    }
+}
+
+internal fun openLeakTest(context: android.content.Context) {
+    runCatching {
+        context.startActivity(
+            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://browserleaks.com/ip"))
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
+}
