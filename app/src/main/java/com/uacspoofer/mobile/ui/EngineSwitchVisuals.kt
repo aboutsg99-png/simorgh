@@ -101,10 +101,10 @@ internal fun EngineMode.toHomeRemoteSlot(): HomeRemoteSlot = when (this) {
 
 @Composable
 internal fun EngineMode.switchContentDescription(): String = when (this) {
-    EngineMode.XRAY_CF -> homeText("Cloudflare SNI engine", "موتور کلودفلر")
-    EngineMode.TOR_WEBTUNNEL -> homeText("Sayeh engine", "موتور تور")
+    EngineMode.XRAY_CF -> homeText("Parvaz engine", "موتور پرواز")
+    EngineMode.TOR_WEBTUNNEL -> homeText("Sayeh engine", "موتور سایه")
     EngineMode.UAC_POW -> homeText("Shahpar engine", "موتور شاهپر")
-    EngineMode.UAC_DIRECT -> homeText("Tir engine", "موتور دایرکت")
+    EngineMode.UAC_DIRECT -> homeText("Tir engine", "موتور تیر")
 }
 
 private fun EngineMode.identityIcon(): ImageVector = when (this) {
@@ -114,12 +114,7 @@ private fun EngineMode.identityIcon(): ImageVector = when (this) {
     EngineMode.UAC_DIRECT -> DirectArrowIcon
 }
 
-private fun EngineMode.shortName(): String = when (this) {
-    EngineMode.XRAY_CF -> "Parvaz"
-    EngineMode.TOR_WEBTUNNEL -> "Sayeh"
-    EngineMode.UAC_POW -> "Shahpar"
-    EngineMode.UAC_DIRECT -> "Tir"
-}
+private fun EngineMode.shortName(): String = info.latin
 
 /**
  * Glassy vertical segmented control. A spring-driven indicator slides behind the active
@@ -127,6 +122,56 @@ private fun EngineMode.shortName(): String = when (this) {
  */
 @Composable
 internal fun EngineSwitchRail(
+    selected: EngineMode,
+    pending: EngineMode?,
+    compact: Boolean,
+    enabled: Boolean,
+    onSelect: (EngineMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (Neo.active) {
+        NeoEngineRail(selected, pending, enabled, onSelect, modifier)
+        return
+    }
+    LegacyEngineSwitchRail(selected, pending, compact, enabled, onSelect, modifier)
+}
+
+/** Neumorphic horizontal engine rail, driven by [EngineCatalog.rail]. */
+@Composable
+private fun NeoEngineRail(
+    selected: EngineMode,
+    pending: EngineMode?,
+    enabled: Boolean,
+    onSelect: (EngineMode) -> Unit,
+    modifier: Modifier,
+) {
+    val active = pending ?: selected
+    val engines = EngineCatalog.rail
+    val persian = LocalHomePersian.current
+    val segments = engines.map { info ->
+        NeoSegment(
+            label = if (persian) info.persian else info.latin,
+            icon = info.icon,
+            description = homeText("${info.latin} engine", "موتور ${info.persian}"),
+        )
+    }
+    NeoSegmented(
+        segments = segments,
+        selectedIndex = engines.indexOfFirst { it.mode == active },
+        onSelect = { index -> engines.getOrNull(index)?.mode?.let(onSelect) },
+        modifier = modifier,
+        enabled = enabled,
+        spinningIndex = pending?.let { p -> engines.indexOfFirst { it.mode == p } } ?: -1,
+        font = homeLocalizedFont(),
+        itemModifier = { index ->
+            val mode = engines[index].mode
+            if (mode != null) Modifier.trackHomeSlot(mode.toHomeRemoteSlot()).keyboardFocusRing() else Modifier
+        },
+    )
+}
+
+@Composable
+private fun LegacyEngineSwitchRail(
     selected: EngineMode,
     pending: EngineMode?,
     compact: Boolean,
@@ -280,7 +325,7 @@ private fun EngineSwitchItem(
         ) {
             Text(
                 text = mode.shortName(),
-                color = Color.White,
+                color = UacColors.TextPrimary,
                 fontSize = if (com.uacspoofer.mobile.ui.theme.UacThemeState.isNeon) styleTokens()!!.railLabelSize.sp else 9.5.sp,
                 fontWeight = if (com.uacspoofer.mobile.ui.theme.UacThemeState.isNeon) {
                     FontWeight(styleTokens()!!.railLabelWeight)

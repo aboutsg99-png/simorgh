@@ -505,7 +505,7 @@ private fun DirectConnectDetails(
             val font = homeLocalizedFont()
             val paint = directPanelPaint(primary = true)
             val accent = paint.border
-            val resultAccent = if (UacThemeState.theme == AppTheme.CLASSIC && status.phase != DirectPhase.FAILED) {
+            val resultAccent = if (!UacThemeState.isNeon && status.phase != DirectPhase.FAILED) {
                 UacColors.ConnectedGreen
             } else {
                 accent

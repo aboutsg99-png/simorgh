@@ -727,7 +727,7 @@ private fun DoubleBackPrompt(
                 Column(Modifier.weight(1f)) {
                     Text(
                         text = if (connected) "Keep VPN running" else "Close the app",
-                        color = Color.White,
+                        color = UacColors.TextPrimary,
                         fontSize = 15.5.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -804,22 +804,29 @@ private fun HomeScreenContent(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = if (neonHome != null) {
-                        listOf(neonHome.bgTop, neonHome.bgMid, neonHome.bgBottom)
-                    } else {
-                        listOf(
-                            UacColors.BackgroundTop,
-                            UacColors.BackgroundMiddle,
-                            UacColors.BackgroundBottom,
-                        )
-                    },
-                ),
+            .then(
+                if (neonHome == null && Neo.active) {
+                    Modifier.neoBackground()
+                } else {
+                    Modifier
+                    .background(
+                        Brush.verticalGradient(
+                            colors = if (neonHome != null) {
+                                listOf(neonHome.bgTop, neonHome.bgMid, neonHome.bgBottom)
+                            } else {
+                                listOf(
+                                    UacColors.BackgroundTop,
+                                    UacColors.BackgroundMiddle,
+                                    UacColors.BackgroundBottom,
+                                )
+                            },
+                        ),
+                    )
+                },
             )
             .homeRemoteDpad(onMenuClick),
     ) {
-        if (neonHome == null) GlassLights(UacColors.NeonMagenta, UacColors.NeonCyan)
+        if (neonHome == null && !Neo.active) GlassLights(UacColors.NeonMagenta, UacColors.NeonCyan)
         val innerHeight = maxHeight -
             safeDrawingPadding.calculateTopPadding() -
             safeDrawingPadding.calculateBottomPadding()
@@ -964,6 +971,9 @@ private fun HomeScreenContent(
                     }
                 }
             }
+            if (neonHome == null && Neo.active) {
+                Spacer(Modifier.height(if (tight) 8.dp else if (compact) 12.dp else 18.dp))
+            } else {
             AnimatedDottedWave(
                 accent = neonHome?.waveStart ?: stateColors.accent,
                 secondary = neonHome?.waveEnd,
@@ -984,6 +994,7 @@ private fun HomeScreenContent(
                     .then(if (neonHome != null) Modifier.graphicsLayer { alpha = neonHome.waveAlpha } else Modifier)
                     .clip(RectangleShape),
             )
+            }
         }
         PowConnectSheet(
             modifier = Modifier
@@ -1091,8 +1102,15 @@ private fun SelectedProfileRow(
     Row(
         modifier = modifier
             .widthIn(max = maxWidth)
-            .height(neonRow?.rowHeight?.dp ?: 44.dp)
+            .height(neonRow?.rowHeight?.dp ?: if (Neo.active) 50.dp else 44.dp)
             .then(if (neonRow != null) Modifier.graphicsLayer { alpha = neonRow.rowAlpha } else Modifier)
+            .then(
+                if (neonRow == null && Neo.active) {
+                    Modifier.neoSurface(RoundedCornerShape(20.dp), depth = 5.dp).clip(RoundedCornerShape(20.dp))
+                } else {
+                    Modifier
+                },
+            )
             .semantics(mergeDescendants = true) { role = Role.Button }
             .then(
                 if (guideSession?.step == HomeGuideStep.Country) {
@@ -1131,7 +1149,7 @@ private fun SelectedProfileRow(
             },
         )
         Spacer(Modifier.size(9.dp))
-        Box(Modifier.size(width = 1.dp, height = 16.dp).background(Color.White.copy(alpha = 0.13f)))
+        Box(Modifier.size(width = 1.dp, height = 16.dp).background(UacColors.TextSecondary.copy(alpha = 0.3f)))
         Spacer(Modifier.size(9.dp))
         AnimatedContent(
             targetState = selectedLabel,

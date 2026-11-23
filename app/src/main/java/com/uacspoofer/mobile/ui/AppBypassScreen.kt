@@ -274,7 +274,7 @@ internal fun AppBypassScreen(onMenuClick: () -> Unit) {
                         unfocusedBorderColor = UacColors.CardBorder,
                         cursorColor = UacColors.DisconnectedBlue,
                         focusedContainerColor = Color(0x1FFFFFFF),
-                        unfocusedContainerColor = Color(0x66101C29),
+                        unfocusedContainerColor = UacColors.Surface.copy(alpha = 0.6f),
                     ),
                 )
                 Row(

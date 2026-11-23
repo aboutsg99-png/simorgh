@@ -158,7 +158,7 @@ private fun ConnectRescueCard(snapshot: ConnectRescueSnapshot) {
                 Column(Modifier.weight(1f)) {
                     Text(
                         homeText("Clean IP rescue", "نجات با IP تمیز"),
-                        color = Color.White,
+                        color = UacColors.TextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = localizedFont,
@@ -185,7 +185,7 @@ private fun ConnectRescueCard(snapshot: ConnectRescueSnapshot) {
             Spacer(Modifier.height(10.dp))
             Text(
                 rescueTitle(snapshot),
-                color = Color.White,
+                color = UacColors.TextPrimary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 fontFamily = localizedFont,

@@ -378,7 +378,7 @@ internal fun RouteSpeedTestScreen(
                     } else {
                         homeText("Live Tournament Ranking", "رتبه‌بندی زنده")
                     },
-                    color = Color.White,
+                    color = UacColors.TextPrimary,
                     fontSize = routeFontSize(13f, 15f),
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -401,7 +401,7 @@ internal fun RouteSpeedTestScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(homeText("Sort by: ", "مرتب‌سازی: "), color = UacColors.TextSecondary, fontSize = routeFontSize(9f, 10.5f))
-                            Text(sortOption.localizedTitle(), color = Color.White, fontSize = routeFontSize(9f, 10.5f), fontWeight = FontWeight.Medium)
+                            Text(sortOption.localizedTitle(), color = UacColors.TextPrimary, fontSize = routeFontSize(9f, 10.5f), fontWeight = FontWeight.Medium)
                             Spacer(Modifier.width(5.dp))
                             Icon(Icons.Outlined.KeyboardArrowDown, null, tint = RouteAccent, modifier = Modifier.size(15.dp))
                         }
@@ -472,7 +472,7 @@ internal fun RouteSpeedTestScreen(
             onDismissRequest = { fullTestConfirmationVisible = false },
             containerColor = Color(0xFF262A32),
             title = {
-                Text(homeText("Start Route Test?", "تست مسیر شروع بشه؟"), color = Color.White, fontWeight = FontWeight.SemiBold)
+                Text(homeText("Start Route Test?", "تست مسیر شروع بشه؟"), color = UacColors.TextPrimary, fontWeight = FontWeight.SemiBold)
             },
             text = {
                 Text(
@@ -558,7 +558,7 @@ private fun RouteSpeedHeader(
         ) {
             Text(
                 homeText("Route Speed Test", "تست سرعت مسیر"),
-                color = Color.White,
+                color = UacColors.TextPrimary,
                 fontSize = routeFontSize(18f, 20f),
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -638,7 +638,7 @@ private fun RouteTestProfileSelector(
                     )
                     Text(
                         selected?.name ?: homeText("No profile", "بدون کانفیگ"),
-                        color = Color.White,
+                        color = UacColors.TextPrimary,
                         fontSize = routeFontSize(10.5f, 12f),
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
@@ -798,7 +798,7 @@ private fun RoutePreparationLivePanel(
                         )
                         Text(
                             progress.step.localizedTitle(),
-                            color = Color.White,
+                            color = UacColors.TextPrimary,
                             fontSize = routeFontSize(14f, 16f),
                             fontWeight = FontWeight.SemiBold,
                         )
@@ -980,7 +980,7 @@ private fun CompactRouteTestSummary(
                 Column(Modifier.weight(1f)) {
                     Text(
                         profileName,
-                        color = Color.White,
+                        color = UacColors.TextPrimary,
                         fontSize = routeFontSize(11.8f, 13.2f),
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
@@ -1231,7 +1231,7 @@ private fun RouteTestSummary(
                 Column(Modifier.weight(1f)) {
                     Text(
                         profileName,
-                        color = Color.White,
+                        color = UacColors.TextPrimary,
                         fontSize = routeFontSize(13.5f, 15f),
                         fontWeight = FontWeight.SemiBold,
                         maxLines = routeMaxLines(1, 2),
@@ -1532,7 +1532,7 @@ private fun SavedRouteProfileDialog(
         },
         title = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(homeText("Saved route profile", "پروفایل مسیر ذخیره‌شده"), color = Color.White, fontSize = routeFontSize(18f, 20f), fontWeight = FontWeight.SemiBold)
+                Text(homeText("Saved route profile", "پروفایل مسیر ذخیره‌شده"), color = UacColors.TextPrimary, fontSize = routeFontSize(18f, 20f), fontWeight = FontWeight.SemiBold)
                 Text(
                     homeText(
                         "Bound to one configuration and network fingerprint",
@@ -1571,7 +1571,7 @@ private fun SavedRouteProfileDialog(
                             Column(Modifier.weight(1f)) {
                                 Text(
                                     details.profileName,
-                                    color = Color.White,
+                                    color = UacColors.TextPrimary,
                                     fontSize = routeFontSize(15f, 16.5f),
                                     fontWeight = FontWeight.SemiBold,
                                 )
@@ -1640,7 +1640,7 @@ private fun ProfileDialogEmptyState() {
         ) {
             Icon(Icons.Outlined.ErrorOutline, null, tint = UacColors.TextSecondary, modifier = Modifier.size(26.dp))
             Spacer(Modifier.height(6.dp))
-            Text(homeText("No route profile is saved", "هنوز پروفایل مسیری ذخیره نشده"), color = Color.White, fontSize = routeFontSize(13f, 15f), fontWeight = FontWeight.Medium)
+            Text(homeText("No route profile is saved", "هنوز پروفایل مسیری ذخیره نشده"), color = UacColors.TextPrimary, fontSize = routeFontSize(13f, 15f), fontWeight = FontWeight.Medium)
             Text(
                 homeText("Select USE on a healthy route to save it", "برای ذخیره، گزینه استفاده روی یک مسیر سالم رو بزن"),
                 color = UacColors.TextSecondary,
@@ -1739,7 +1739,7 @@ private fun StageDetailsDialog(stage: RouteTournamentStage, onDismiss: () -> Uni
         },
         title = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(localizedStageTitle(stage), color = Color.White, fontSize = routeFontSize(18f, 21f), fontWeight = FontWeight.SemiBold)
+                Text(localizedStageTitle(stage), color = UacColors.TextPrimary, fontSize = routeFontSize(18f, 21f), fontWeight = FontWeight.SemiBold)
                 Text(homeText("Route Tournament stage", "مرحله مسابقه مسیرها"), color = RouteAccent, fontSize = routeFontSize(11f, 13f), fontWeight = FontWeight.Medium)
             }
         },
@@ -1865,7 +1865,7 @@ private fun StageInfoBlock(title: String, text: String, accent: Color) {
 private fun StageStat(label: String, value: String, modifier: Modifier = Modifier) {
     Surface(color = Color.White.copy(alpha = 0.03f), shape = RoundedCornerShape(9.dp), modifier = modifier) {
         Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(value, color = UacColors.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Text(label, color = UacColors.TextSecondary, fontSize = routeFontSize(9.5f, 11f))
         }
     }
@@ -1921,7 +1921,7 @@ private fun RouteResultCard(
                         .border(1.5.dp, rankColor(rank), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("$rank", color = Color.White, fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold)
+                    Text("$rank", color = UacColors.TextPrimary, fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Spacer(Modifier.width(7.dp))
                 Box(
@@ -1940,7 +1940,7 @@ private fun RouteResultCard(
                 Column(Modifier.weight(1f)) {
                     Text(
                         routeTitle,
-                        color = Color.White,
+                        color = UacColors.TextPrimary,
                         fontSize = routeFontSize(9.2f, 10.3f),
                         fontWeight = FontWeight.SemiBold,
                         lineHeight = 10.3.sp,
@@ -2156,7 +2156,7 @@ private fun ExpandedSectionHeader(icon: ImageVector, title: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, null, tint = Color(0xFF4A91FF), modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(4.dp))
-        Text(title, color = Color.White, fontSize = routeFontSize(9.5f, 10.5f), fontWeight = FontWeight.SemiBold)
+        Text(title, color = UacColors.TextPrimary, fontSize = routeFontSize(9.5f, 10.5f), fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -2166,7 +2166,7 @@ private fun ExpandedIdentityBlock(icon: ImageVector, title: String, value: Strin
         Icon(icon, null, tint = Color(0xFF4A91FF), modifier = Modifier.size(15.dp))
         Spacer(Modifier.width(5.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, color = Color.White, fontSize = routeFontSize(9f, 10.5f), fontWeight = FontWeight.SemiBold)
+            Text(title, color = UacColors.TextPrimary, fontSize = routeFontSize(9f, 10.5f), fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(1.dp))
             Text(
                 value,
@@ -2369,7 +2369,7 @@ private fun RouteTestReadyState(
                 Spacer(Modifier.height(10.dp))
                 Text(
                     homeText("Ready when you are", "هر وقت آماده‌ای شروع کن"),
-                    color = Color.White,
+                    color = UacColors.TextPrimary,
                     fontSize = routeFontSize(14f, 16f),
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -2395,7 +2395,7 @@ private fun EmptyRouteState(onRefresh: () -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(Icons.Outlined.ErrorOutline, null, tint = UacColors.TextSecondary, modifier = Modifier.size(30.dp))
             Spacer(Modifier.height(9.dp))
-            Text(homeText("No routes available", "مسیر قابل استفاده‌ای پیدا نشد"), color = Color.White, fontSize = routeFontSize(13f, 15f), fontWeight = FontWeight.Medium)
+            Text(homeText("No routes available", "مسیر قابل استفاده‌ای پیدا نشد"), color = UacColors.TextPrimary, fontSize = routeFontSize(13f, 15f), fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(4.dp))
             Text(homeText("Check the network and refresh the route list", "شبکه رو بررسی کن و لیست مسیرها رو دوباره بساز"), color = UacColors.TextSecondary, fontSize = routeFontSize(10f, 12f))
             Spacer(Modifier.height(12.dp))

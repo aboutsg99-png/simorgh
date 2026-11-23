@@ -595,7 +595,7 @@ object SolarisLive {
 internal fun styleTokens(theme: AppTheme = UacThemeState.theme): NeonTokens? = when (theme) {
     AppTheme.SOLARIS -> SolarisLive.tokens
     AppTheme.NEON -> NeonLive.tokens
-    AppTheme.CLASSIC -> null
+    else -> null
 }
 
 internal fun neonSize(compact: Boolean, regular: Float, compactValue: Float, tuned: Float): Float {

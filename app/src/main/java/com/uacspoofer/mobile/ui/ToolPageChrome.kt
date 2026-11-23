@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.unit.sp
 import com.uacspoofer.mobile.ui.theme.UacColors
 
@@ -88,8 +89,10 @@ internal fun ToolPageScaffold(
                     modifier = Modifier
                         .fillMaxHeight()
                         .fillMaxWidth()
-                        .then(if (wide) Modifier.widthIn(max = WideShell.PageContentMax) else Modifier)
-                        .padding(horizontal = 18.dp),
+                        .then(if (wide) Modifier.widthIn(max = WideShell.PageContentMax) else Modifier),
+                    // Content padding (not a clip-side padding) so neumorphic shadows on the
+                    // cards are not cut at the list edges.
+                    contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 4.dp, bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(verticalSpacing),
                     content = content,
                 )
@@ -130,14 +133,18 @@ internal fun ToolPageHeader(
                 modifier = Modifier.size(24.dp),
             )
         }
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .background(accent.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
-                .border(1.dp, accent.copy(alpha = 0.28f), RoundedCornerShape(14.dp)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(23.dp))
+        if (Neo.active) {
+            NeoIconTile(icon = icon, tint = accent, size = 44.dp)
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(accent.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
+                    .border(1.dp, accent.copy(alpha = 0.28f), RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(23.dp))
+            }
         }
         androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -173,7 +180,7 @@ internal fun SectionLabel(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-internal val ToolCardShape = RoundedCornerShape(20.dp)
+internal val ToolCardShape = RoundedCornerShape(22.dp)
 private val DefaultToolCardBrush: Brush get() = Glass.Fill
 internal val ToolCardBrush: Brush
     get() {

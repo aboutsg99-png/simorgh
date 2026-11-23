@@ -1,7 +1,15 @@
 package com.uacspoofer.mobile.ui.theme
 
+import android.app.Activity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.delay
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -39,13 +47,19 @@ internal data class UacPalette(
     val drawerSurface: Color = Color.Unspecified,
     val surfaceOverride: Color = Color.Unspecified,
     val dividerOverride: Color = Color.Unspecified,
+    // Neumorphic tokens: light and dark shadow tones and the two accent stops.
+    val light: Boolean = false,
+    val neoHi: Color = Color(0xFF2E333D),
+    val neoLo: Color = Color(0xFF121418),
+    val accentStart: Color = Color(0xFF4FE3C1),
+    val accentEnd: Color = Color(0xFF3AA8FF),
 )
 
 private val ClassicPalette = UacPalette(
     neon = false,
-    backgroundTop = Color(0xFF23272F),
+    backgroundTop = Color(0xFF20242B),
     backgroundMiddle = Color(0xFF20242B),
-    backgroundBottom = Color(0xFF1C2026),
+    backgroundBottom = Color(0xFF20242B),
     surface = Color(0xFF262A32),
     disconnected = Color(0xFF3AA8FF),
     connecting = Color(0xFF6CC9FF),
@@ -63,6 +77,102 @@ private val ClassicPalette = UacPalette(
     neonCyan = Color(0xFF3AA8FF),
     neonViolet = Color(0xFF6CC9FF),
     settingsSurface = Color(0xF0262A32),
+)
+
+/** Mist: the light neumorphic theme on a #E6E9EF base. */
+private val MistPalette = UacPalette(
+    neon = false,
+    backgroundTop = Color(0xFFE6E9EF),
+    backgroundMiddle = Color(0xFFE6E9EF),
+    backgroundBottom = Color(0xFFE6E9EF),
+    surface = Color(0xFFE9ECF2),
+    disconnected = Color(0xFF2B8FE0),
+    connecting = Color(0xFF2FA6E8),
+    connected = Color(0xFF17B391),
+    disconnecting = Color(0xFFDB8E1E),
+    error = Color(0xFFE5485A),
+    textPrimary = Color(0xFF1D2330),
+    textSecondary = Color(0xFF687183),
+    cardBorder = Color(0x14000000),
+    divider = Color(0x0F000000),
+    buttonCenter = Color(0xFFE6E9EF),
+    buttonEdge = Color(0xFFB9C0CB),
+    buttonInnerRing = Color(0xFFD5DAE2),
+    neonMagenta = Color(0xFF17B391),
+    neonCyan = Color(0xFF2B8FE0),
+    neonViolet = Color(0xFF2FA6E8),
+    settingsSurface = Color(0xF7ECEFF4),
+    light = true,
+    neoHi = Color(0xFFFFFFFF),
+    neoLo = Color(0xFFA9B1BE),
+    accentStart = Color(0xFF2BD1AE),
+    accentEnd = Color(0xFF2E8FE8),
+)
+
+private fun neoDark(
+    bg: Color,
+    hi: Color,
+    lo: Color,
+    text: Color,
+    muted: Color,
+    idle: Color,
+    connecting: Color,
+    connected: Color,
+    accentStart: Color,
+    accentEnd: Color,
+) = ClassicPalette.copy(
+    backgroundTop = bg,
+    backgroundMiddle = bg,
+    backgroundBottom = bg,
+    surface = hi,
+    disconnected = idle,
+    connecting = connecting,
+    connected = connected,
+    textPrimary = text,
+    textSecondary = muted,
+    buttonCenter = bg,
+    buttonEdge = lo,
+    buttonInnerRing = hi,
+    neonMagenta = connected,
+    neonCyan = idle,
+    neonViolet = connecting,
+    settingsSurface = hi.copy(alpha = 0.94f),
+    neoHi = hi,
+    neoLo = lo,
+    accentStart = accentStart,
+    accentEnd = accentEnd,
+)
+
+/** Midnight: deep navy. */
+private val MidnightPalette = neoDark(
+    bg = Color(0xFF1B1F2E), hi = Color(0xFF282E44), lo = Color(0xFF0F121B),
+    text = Color(0xFFE6E9F5), muted = Color(0xFF8B92AD),
+    idle = Color(0xFF7C9CFF), connecting = Color(0xFF7DD3FC), connected = Color(0xFF5EE0D0),
+    accentStart = Color(0xFF7C9CFF), accentEnd = Color(0xFF4FD1FF),
+)
+
+/** Sahar: warm sunset on a dusky base. */
+private val SaharPalette = neoDark(
+    bg = Color(0xFF2A2024), hi = Color(0xFF392C31), lo = Color(0xFF191215),
+    text = Color(0xFFF5E9E4), muted = Color(0xFFA8918B),
+    idle = Color(0xFFFF8A7A), connecting = Color(0xFFFFC48A), connected = Color(0xFFFFB067),
+    accentStart = Color(0xFFFFA764), accentEnd = Color(0xFFFF5E7E),
+)
+
+/** Jangal: dark forest green. */
+private val JangalPalette = neoDark(
+    bg = Color(0xFF1C2420), hi = Color(0xFF28322C), lo = Color(0xFF101613),
+    text = Color(0xFFE4EEE7), muted = Color(0xFF8AA195),
+    idle = Color(0xFF5FD39A), connecting = Color(0xFFA7F3D0), connected = Color(0xFF6EE7A8),
+    accentStart = Color(0xFF86EFAC), accentEnd = Color(0xFF22C55E),
+)
+
+/** Firouzeh: turquoise on deep teal. */
+private val FirouzehPalette = neoDark(
+    bg = Color(0xFF17262A), hi = Color(0xFF22363B), lo = Color(0xFF0C1619),
+    text = Color(0xFFE3F2F3), muted = Color(0xFF86A5A9),
+    idle = Color(0xFF38BDF8), connecting = Color(0xFF67E8F9), connected = Color(0xFF5EEAD4),
+    accentStart = Color(0xFF5EEAD4), accentEnd = Color(0xFF06B6D4),
 )
 
 private val NeonPalette = UacPalette(
@@ -113,6 +223,11 @@ internal fun Color.orDefault(default: Color): Color = if (isSpecified) this else
 internal fun paletteFor(theme: AppTheme, tokens: NeonTokens? = styleTokens(theme)): UacPalette {
     val base = when (theme) {
         AppTheme.CLASSIC -> ClassicPalette
+        AppTheme.MIST -> MistPalette
+        AppTheme.MIDNIGHT -> MidnightPalette
+        AppTheme.SAHAR -> SaharPalette
+        AppTheme.JANGAL -> JangalPalette
+        AppTheme.FIROUZEH -> FirouzehPalette
         AppTheme.NEON -> NeonPalette
         AppTheme.SOLARIS -> SolarisPalette
     }
@@ -145,6 +260,7 @@ internal object UacThemeState {
     var theme by mutableStateOf(AppTheme.CLASSIC)
     val palette by derivedStateOf(structuralEqualityPolicy()) { paletteFor(theme) }
     val isNeon: Boolean get() = palette.neon
+    val isLight: Boolean get() = palette.light
 }
 
 object UacColors {
@@ -186,9 +302,32 @@ fun colorsFor(state: ConnectionState): UiStateColors = when (state) {
 @Composable
 fun UacSniSpooferTheme(content: @Composable () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    remember(context) { AppThemeStore.get(context) }
+    val themeStore = remember(context) { AppThemeStore.get(context) }
+    val style by themeStore.style.collectAsState()
+    LaunchedEffect(style.themeOfDay, style.autoDarkLight) {
+        if (!style.themeOfDay && !style.autoDarkLight) return@LaunchedEffect
+        while (true) {
+            themeStore.refreshAutomatic()
+            delay(5 * 60_000L)
+        }
+    }
     val palette = UacThemeState.palette
-    val scheme = darkColorScheme(
+    val scheme = if (palette.light) lightColorScheme(
+        primary = palette.connected,
+        secondary = palette.disconnected,
+        background = palette.backgroundTop,
+        surface = palette.surface,
+        onPrimary = Color.White,
+        onBackground = palette.textPrimary,
+        onSurface = palette.textPrimary,
+        onSurfaceVariant = palette.textSecondary,
+        surfaceVariant = palette.settingsSurface,
+        surfaceContainer = palette.surface,
+        surfaceContainerHigh = palette.surface,
+        outline = palette.cardBorder,
+        outlineVariant = palette.divider,
+        error = palette.error,
+    ) else darkColorScheme(
         primary = palette.connected,
         secondary = palette.disconnected,
         background = palette.backgroundTop,
@@ -204,6 +343,17 @@ fun UacSniSpooferTheme(content: @Composable () -> Unit) {
         outlineVariant = palette.divider,
         error = palette.error,
     )
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window
+            if (window != null) {
+                val controller = WindowCompat.getInsetsController(window, view)
+                controller.isAppearanceLightStatusBars = palette.light
+                controller.isAppearanceLightNavigationBars = palette.light
+            }
+        }
+    }
     ProvideFixedFontScale {
         MaterialTheme(
             colorScheme = scheme,

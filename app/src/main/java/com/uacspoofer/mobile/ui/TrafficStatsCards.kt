@@ -64,6 +64,7 @@ import com.uacspoofer.mobile.ui.theme.styleTokens
 import com.uacspoofer.mobile.ui.theme.UacColors
 import com.uacspoofer.mobile.ui.theme.neonDp
 import com.uacspoofer.mobile.ui.theme.neonSp
+import com.uacspoofer.mobile.vpn.ConnectionMetricsStore
 import com.uacspoofer.mobile.vpn.DailyTraffic
 import com.uacspoofer.mobile.vpn.DailyTrafficStore
 import com.uacspoofer.mobile.vpn.MonthlyTrafficStore
@@ -77,6 +78,18 @@ internal fun TrafficStatsRow(
     compact: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    if (styleTokens() == null && Neo.active) {
+        // Each tile reads its own flow, so a traffic tick only redraws that tile.
+        Row(
+            modifier = modifier,
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp),
+        ) {
+            NeoPingTile(compact, Modifier.weight(1f))
+            NeoRateTile(download = true, compact = compact, modifier = Modifier.weight(1f))
+            NeoRateTile(download = false, compact = compact, modifier = Modifier.weight(1f))
+        }
+        return
+    }
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 10.dp),
@@ -98,6 +111,49 @@ internal fun TrafficStatsRow(
             modifier = Modifier.weight(1f),
         )
     }
+}
+
+/** Real measured tunnel latency; shows a dash until a sample exists. */
+@Composable
+private fun NeoPingTile(compact: Boolean, modifier: Modifier) {
+    val metricsState = ConnectionMetricsStore.metrics.collectAsState()
+    val value by remember {
+        derivedStateOf {
+            val metrics = metricsState.value
+            when {
+                metrics.isMeasuringLatency -> "\u2026"
+                metrics.latencyMs != null -> metrics.latencyMs.toString()
+                else -> "\u2014"
+            }
+        }
+    }
+    NeoStatTile(
+        label = homeText("Ping", "پینگ"),
+        value = value,
+        unit = "ms",
+        font = homeLocalizedFont(),
+        compact = compact,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun NeoRateTile(download: Boolean, compact: Boolean, modifier: Modifier) {
+    val statsState = TrafficStatsStore.stats.collectAsState()
+    val rate by remember(download) {
+        derivedStateOf {
+            val stats = statsState.value
+            formatBytes(if (download) stats.downloadBytesPerSecond else stats.uploadBytesPerSecond)
+        }
+    }
+    NeoStatTile(
+        label = if (download) homeText("Download", "دانلود") else homeText("Upload", "آپلود"),
+        value = rate.amount,
+        unit = "${rate.unit}/s",
+        font = homeLocalizedFont(),
+        compact = compact,
+        modifier = modifier,
+    )
 }
 
 @Composable

@@ -221,20 +221,27 @@ private fun ConnectedInsightsCard(
             .fillMaxWidth()
             .height(if (tuned != null) neonDp(compact, 94f, 86f, tuned.insightHeight) else if (compact) 86.dp else 94.dp)
             .then(if (tuned != null) Modifier.graphicsLayer { alpha = tuned.insightAlpha } else Modifier)
-            .background(tuned?.insightFill ?: UacColors.Surface.copy(alpha = 0.82f), shape)
-            .border(
-                tuned?.insightBorder?.dp ?: 0.75.dp,
-                if (tuned != null) {
-                    val legacy = if (solaris) UacColors.CardBorder else tuned.insightBorderColor
-                    val untouched = tuned.cardBorderStart == tuned.cardBorderColor &&
-                        tuned.cardBorderEnd == tuned.cardBorderColor
-                    Brush.linearGradient(
-                        if (untouched) listOf(legacy, legacy) else listOf(tuned.cardBorderStart, tuned.cardBorderEnd),
-                    )
+            .then(
+                if (tuned == null && Neo.active) {
+                    Modifier.neoSurface(RoundedCornerShape(22.dp))
                 } else {
-                    Brush.linearGradient(listOf(UacColors.CardBorder, UacColors.CardBorder))
+                    Modifier
+                .background(tuned?.insightFill ?: UacColors.Surface.copy(alpha = 0.82f), shape)
+                .border(
+                    tuned?.insightBorder?.dp ?: 0.75.dp,
+                    if (tuned != null) {
+                        val legacy = if (solaris) UacColors.CardBorder else tuned.insightBorderColor
+                        val untouched = tuned.cardBorderStart == tuned.cardBorderColor &&
+                            tuned.cardBorderEnd == tuned.cardBorderColor
+                        Brush.linearGradient(
+                            if (untouched) listOf(legacy, legacy) else listOf(tuned.cardBorderStart, tuned.cardBorderEnd),
+                        )
+                    } else {
+                        Brush.linearGradient(listOf(UacColors.CardBorder, UacColors.CardBorder))
+                    },
+                    shape,
+                )
                 },
-                shape,
             )
             .padding(horizontal = 5.dp, vertical = if (compact) 7.dp else 9.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -262,7 +269,7 @@ private fun ConnectedInsightsCard(
         InsightItem(
             title = homeText("COUNTRY", "کشور"),
             value = country.countryName.takeIf { country.isKnown } ?: homeText("Unknown", "نامشخص"),
-            valueColor = Color.White,
+            valueColor = UacColors.TextPrimary,
             detail = country.countryCode ?: countryFallback,
             detailColor = UacColors.TextSecondary,
             iconTint = if (solaris) UacColors.ConnectedGreen else null,
@@ -277,7 +284,7 @@ private fun ConnectedInsightsCard(
         InsightItem(
             title = homeText("LOG", "لاگ"),
             value = logCount.toString(),
-            valueColor = Color.White,
+            valueColor = UacColors.TextPrimary,
             detail = if (errorCount == 0) {
                 homeText("No errors", "بدون خطا")
             } else {

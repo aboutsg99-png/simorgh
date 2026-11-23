@@ -106,6 +106,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -159,7 +160,7 @@ import com.uacspoofer.mobile.vpn.LanShareStatus
 import com.uacspoofer.mobile.vpn.MonthlyTrafficStore
 import com.uacspoofer.mobile.vpn.UacQuickSettingsTileService
 
-private val SettingsGroupShape = RoundedCornerShape(20.dp)
+private val SettingsGroupShape = RoundedCornerShape(24.dp)
 private val SettingsGroupColor get() = UacColors.SettingsSurface
 private val SettingsRowTextInset = 58.dp
 
@@ -225,10 +226,12 @@ internal fun SettingsScreen(
             item(key = SettingsSection.APPEARANCE) {
                 SettingsGroup(homeText("App appearance", "ظاهر برنامه")) {
                     AppThemeSettingsRow(themeEditorEnabled, onEditTheme)
+                    if (Neo.active) NeoAppearanceControls()
                 }
             }
             item(key = SettingsSection.CONNECTION) {
                 SettingsGroup(homeText("Connection and network", "اتصال و شبکه")) {
+                    IranDirectSettingsRow(showDivider = true)
                     ConnectionModeSettingsRow(showDivider = true)
                     TunBackendSettingsRow()
                     if (engineMode.isPow) {
@@ -283,7 +286,6 @@ internal fun SettingsScreen(
                     AutoConnectSettingsRow(showDivider = true)
                     LanShareSettingsRow(showDivider = true)
                     QuicBlockSettingsRow(showDivider = true)
-                    IranDirectSettingsRow(showDivider = true)
                     ManualDirectDomainsSettingsRow(showDivider = true)
                     TrafficUsageSettingsRow(showDivider = false)
                 }
@@ -543,14 +545,21 @@ private fun ConnectionModeSettingsRow(showDivider: Boolean) {
                             fontSize = 12.sp,
                         )
                     }
-                    Switch(
-                        checked = advanced.socksUdp,
-                        onCheckedChange = { enabled -> store.update { it.copy(socksUdp = enabled) } },
-                        colors = SwitchDefaults.colors(
-                            checkedTrackColor = UacColors.DisconnectedBlue,
-                            checkedThumbColor = Color.White,
-                        ),
-                    )
+                    if (Neo.active) {
+                        NeoToggle(
+                            checked = advanced.socksUdp,
+                            onCheckedChange = { enabled -> store.update { it.copy(socksUdp = enabled) } },
+                        )
+                    } else {
+                        Switch(
+                            checked = advanced.socksUdp,
+                            onCheckedChange = { enabled -> store.update { it.copy(socksUdp = enabled) } },
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = UacColors.DisconnectedBlue,
+                                checkedThumbColor = Color.White,
+                            ),
+                        )
+                    }
                 }
             }
         }
@@ -831,8 +840,11 @@ private fun IranDirectSettingsRow(showDivider: Boolean) {
     LaunchedEffect(Unit) { refreshStatus() }
     SettingsToggleRow(
         icon = Icons.AutoMirrored.Outlined.AltRoute,
-        title = homeText("Tir access to Iranian sites", "دسترسی مستقیم به سایت‌های ایرانی"),
-        summary = if (settings.iranDirect) homeText("On", "روشن") else homeText("Off", "خاموش"),
+        title = homeText("Iranian sites direct", "سایت‌های ایرانی مستقیم"),
+        summary = homeText(
+            ".ir domains and Iranian IPs skip the tunnel",
+            "دامنه‌های .ir و IPهای ایران بدون عبور از تونل",
+        ),
         enabled = settings.iranDirect,
         help = homeText(
             "Traffic to Iranian sites uses your regular internet connection.",
@@ -1388,14 +1400,23 @@ private fun AppThemeSettingsRow(themeEditorEnabled: Boolean, onEditTheme: () -> 
     val savedThemes by store.savedThemes.collectAsStateWithLifecycle()
     val selectedId by store.selectedId.collectAsStateWithLifecycle()
     val unlockTaps = remember { FiveTapSequence() }
-    Row(
+    val themeOrder = listOf(
+        AppTheme.CLASSIC, AppTheme.MIST, AppTheme.MIDNIGHT, AppTheme.SAHAR,
+        AppTheme.JANGAL, AppTheme.FIROUZEH, AppTheme.NEON, AppTheme.SOLARIS,
+    )
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .selectableGroup()
             .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+    for (rowThemes in themeOrder.chunked(4)) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        for (base in AppTheme.entries) {
+        for (base in rowThemes) {
             AppThemeChoice(
                 theme = base,
                 selected = theme == base && selectedId == null,
@@ -1410,6 +1431,8 @@ private fun AppThemeSettingsRow(themeEditorEnabled: Boolean, onEditTheme: () -> 
                 modifier = Modifier.weight(1f),
             )
         }
+    }
+    }
     }
     if (themeEditorEnabled && savedThemes.isNotEmpty()) {
         SettingsHairline()
@@ -1469,7 +1492,8 @@ internal class FiveTapSequence {
     }
 }
 
-private fun AppTheme.displayName(): String = name.lowercase(Locale.ROOT).replaceFirstChar { it.uppercaseChar() }
+@Composable
+private fun AppTheme.displayName(): String = neoThemeName(this)
 
 @Composable
 private fun AppThemeChoice(
@@ -1479,12 +1503,19 @@ private fun AppThemeChoice(
     modifier: Modifier = Modifier,
 ) {
     val palette = remember(theme) { paletteFor(theme, tokens = null) }
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(if (Neo.active) 18.dp else 14.dp)
     Column(
         modifier = modifier
-            .clip(shape)
-            .background(if (selected) UacColors.DisconnectedBlue.copy(alpha = 0.12f) else Color.Transparent)
-            .border(1.dp, if (selected) UacColors.DisconnectedBlue else UacColors.Divider, shape)
+            .then(
+                if (Neo.active) {
+                    Modifier.neoSurface(shape, depth = if (selected) 5.dp else 3.dp, inset = !selected).clip(shape)
+                } else {
+                    Modifier
+                        .clip(shape)
+                        .background(if (selected) UacColors.DisconnectedBlue.copy(alpha = 0.12f) else Color.Transparent)
+                        .border(1.dp, if (selected) UacColors.DisconnectedBlue else UacColors.Divider, shape)
+                },
+            )
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .padding(5.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1497,13 +1528,28 @@ private fun AppThemeChoice(
                 .background(Brush.linearGradient(listOf(palette.backgroundTop, palette.settingsSurface, palette.backgroundBottom))),
             contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier.size(31.dp)
-                    .border(1.dp, palette.connected.copy(alpha = 0.5f), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(Modifier.size(23.dp).background(palette.surface, CircleShape)
-                    .border(1.dp, palette.connected, CircleShape))
+            if (!palette.neon) {
+                // Preview the neumorphic disc in that theme's own light and shade.
+                Box(
+                    Modifier
+                        .size(26.dp)
+                        .drawBehind {
+                            val r = size.minDimension / 2f
+                            val o = 3.dp.toPx()
+                            drawCircle(palette.neoHi, r, center.copy(center.x - o, center.y - o))
+                            drawCircle(palette.neoLo, r, center.copy(center.x + o, center.y + o))
+                            drawCircle(palette.backgroundMiddle, r, center)
+                        },
+                )
+            } else {
+                Box(
+                    modifier = Modifier.size(31.dp)
+                        .border(1.dp, palette.connected.copy(alpha = 0.5f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(Modifier.size(23.dp).background(palette.surface, CircleShape)
+                        .border(1.dp, palette.connected, CircleShape))
+                }
             }
             if (selected) {
                 Icon(
@@ -1543,9 +1589,16 @@ private fun SettingsGroup(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(SettingsGroupShape)
-                .background(SettingsGroupColor)
-                .border(1.dp, UacColors.Divider, SettingsGroupShape)
+                .then(
+                    if (Neo.active) {
+                        Modifier.neoSurface(SettingsGroupShape).clip(SettingsGroupShape)
+                    } else {
+                        Modifier
+                            .clip(SettingsGroupShape)
+                            .background(SettingsGroupColor)
+                            .border(1.dp, UacColors.Divider, SettingsGroupShape)
+                    },
+                )
                 .animateContentSize(),
             content = content,
         )
@@ -1620,7 +1673,13 @@ private fun SettingsToggleRow(
                     )
                 }
             }
-            if (onCheckedChange != null) {
+            if (onCheckedChange != null && Neo.active) {
+                NeoToggle(
+                    checked = enabled,
+                    onCheckedChange = onCheckedChange,
+                    modifier = Modifier.semantics { contentDescription = title },
+                )
+            } else if (onCheckedChange != null) {
                 Switch(
                     checked = enabled,
                     onCheckedChange = onCheckedChange,
@@ -1771,6 +1830,10 @@ private fun QuickSettingsTileRow(
 @Composable
 private fun SettingsRowIcon(icon: ImageVector, enabled: Boolean) {
     val tint = if (enabled) UacColors.ConnectedGreen else UacColors.TextSecondary
+    if (Neo.active) {
+        NeoIconTile(icon = icon, tint = if (enabled) Neo.accentStart else Neo.muted, size = 36.dp)
+        return
+    }
     Box(
         modifier = Modifier
             .size(32.dp)

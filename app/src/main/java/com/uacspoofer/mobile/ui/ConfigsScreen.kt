@@ -11,6 +11,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.rememberScrollState
@@ -437,7 +438,7 @@ internal fun ConfigsScreen(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     state = profileListState,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 104.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 104.dp),
                 ) {
                     items(displayedProfiles, key = ProxyProfile::id) { profile ->
                         ProfileRow(
@@ -559,7 +560,7 @@ internal fun ConfigsScreen(
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
             containerColor = Color(0xFF262A32),
-            title = { Text(homeText("Delete ${target.name}?", "کانفیگ ${target.name} حذف بشه؟"), color = Color.White) },
+            title = { Text(homeText("Delete ${target.name}?", "کانفیگ ${target.name} حذف بشه؟"), color = UacColors.TextPrimary) },
             text = { Text(homeText("The profile will be removed from this device.", "این کانفیگ از دستگاه حذف می‌شه."), color = UacColors.TextSecondary) },
             confirmButton = {
                 Button(
@@ -581,7 +582,7 @@ internal fun ConfigsScreen(
         AlertDialog(
             onDismissRequest = { bulkDeletePending = false },
             containerColor = Color(0xFF262A32),
-            title = { Text(homeText("Delete ${markedIds.size} profiles?", "${markedIds.size} کانفیگ حذف بشه؟"), color = Color.White) },
+            title = { Text(homeText("Delete ${markedIds.size} profiles?", "${markedIds.size} کانفیگ حذف بشه؟"), color = UacColors.TextPrimary) },
             text = { Text(homeText("Selected profiles will be removed from this device.", "کانفیگ‌های انتخاب‌شده از دستگاه حذف می‌شن."), color = UacColors.TextSecondary) },
             confirmButton = {
                 Button(
@@ -646,20 +647,21 @@ private fun ConfigsTopBar(
             onClick = if (selectionMode) onCancelSelection else onMenuClick,
             modifier = Modifier
                 .size(46.dp)
-                .background(Color(0x1FFFFFFF), CircleShape)
-                .border(1.dp, Color.White.copy(alpha = 0.08f), CircleShape)
+                .neoOr(RoundedCornerShape(15.dp)) {
+                    background(Color(0x1FFFFFFF), CircleShape).border(1.dp, Color.White.copy(alpha = 0.08f), CircleShape)
+                }
                 .then(if (selectionMode) Modifier else Modifier.openDrawerOnDpadLeft(onMenuClick)),
         ) {
             Icon(
                 if (selectionMode) Icons.Outlined.Close else Icons.Outlined.Menu,
                 if (selectionMode) homeText("Cancel selection", "لغو انتخاب") else homeText("Open navigation", "بازکردن منو"),
-                tint = Color.White,
+                tint = UacColors.TextPrimary,
             )
         }
         Column(Modifier.weight(1f)) {
             Text(
                 if (selectionMode) homeText("$selectedCount selected", "$selectedCount انتخاب‌شده") else homeText("Configs", "کانفیگ‌ها"),
-                color = Color.White,
+                color = UacColors.TextPrimary,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = if (isPersian) TextAlign.Right else TextAlign.Start,
@@ -743,7 +745,7 @@ private fun ConfigsTopBar(
                 DropdownMenu(
                     expanded = sortMenuExpanded,
                     onDismissRequest = { sortMenuExpanded = false },
-                    modifier = Modifier.background(Color(0xF0262A32)),
+                    modifier = Modifier.background(UacColors.SettingsSurface),
                 ) {
                     ConfigLatencySort.entries.forEach { option ->
                         DropdownMenuItem(
@@ -755,7 +757,7 @@ private fun ConfigsTopBar(
                                         ConfigLatencySort.LATENCY_DESC -> homeText("Latency: high to low", "تأخیر: زیاد به کم")
                                         ConfigLatencySort.COUNTRY_ASC -> homeText("Country (A-Z)", "کشور (A-Z)")
                                     },
-                                    color = Color.White,
+                                    color = UacColors.TextPrimary,
                                 )
                             },
                             trailingIcon = if (option == sortOrder) {
@@ -822,14 +824,24 @@ private fun ProfileRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                if (selected) accent.copy(alpha = 0.075f) else Color(0x1FFFFFFF),
-                RoundedCornerShape(16.dp),
-            )
-            .border(
-                1.dp,
-                accent.copy(alpha = if (selected) 0.48f else 0.13f),
-                RoundedCornerShape(16.dp),
+            .then(
+                if (Neo.active) {
+                    Modifier
+                        .neoSurface(Neo.RowShape, depth = if (selected) 5.dp else 3.5.dp)
+                        .then(if (selected) Modifier.border(1.dp, accent.copy(alpha = 0.45f), Neo.RowShape) else Modifier)
+                        .clip(Neo.RowShape)
+                } else {
+                    Modifier
+                        .background(
+                            if (selected) accent.copy(alpha = 0.075f) else Color(0x1FFFFFFF),
+                            RoundedCornerShape(16.dp),
+                        )
+                        .border(
+                            1.dp,
+                            accent.copy(alpha = if (selected) 0.48f else 0.13f),
+                            RoundedCornerShape(16.dp),
+                        )
+                },
             )
             .semantics {
                 this.selected = selected
@@ -849,7 +861,7 @@ private fun ProfileRow(
                 Text(
                     profile.name,
                     modifier = Modifier.weight(1f, fill = false),
-                    color = Color.White,
+                    color = UacColors.TextPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -882,7 +894,11 @@ private fun ProfileRow(
                     when (delayState) {
                         DelayUiState.Testing -> Text(homeText("testing…", "در حال تست…"), color = UacColors.TextSecondary, fontSize = 9.sp)
                         DelayUiState.Failed -> Text(homeText("Timeout", "مهلت تمام شد"), color = Color(0xFFFF7483), fontSize = 9.sp)
-                        is DelayUiState.Ready -> Text("${delayState.millis} ms", color = UacColors.ConnectedGreen, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+                        is DelayUiState.Ready -> if (Neo.active) {
+                            NeoPill("${delayState.millis} ms", color = UacColors.ConnectedGreen, raised = true)
+                        } else {
+                            Text("${delayState.millis} ms", color = UacColors.ConnectedGreen, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+                        }
                         null -> Unit
                     }
                 }
@@ -914,15 +930,15 @@ private fun ProfileRow(
                 DropdownMenu(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
-                    modifier = Modifier.background(Color(0xF0262A32)),
+                    modifier = Modifier.background(UacColors.SettingsSurface),
                 ) {
                     DropdownMenuItem(
-                        text = { Text(homeText("Real delay", "تأخیر واقعی"), color = Color.White) },
+                        text = { Text(homeText("Real delay", "تأخیر واقعی"), color = UacColors.TextPrimary) },
                         leadingIcon = { Icon(Icons.Outlined.Speed, null, tint = UacColors.ConnectedGreen) },
                         onClick = { menuExpanded = false; onTestDelay() },
                     )
                     DropdownMenuItem(
-                        text = { Text(homeText("Edit", "ویرایش"), color = Color.White) },
+                        text = { Text(homeText("Edit", "ویرایش"), color = UacColors.TextPrimary) },
                         leadingIcon = { Icon(Icons.Outlined.Edit, null, tint = UacColors.DisconnectedBlue) },
                         onClick = { menuExpanded = false; onEdit() },
                     )
@@ -949,8 +965,15 @@ private fun ProtocolBadge(protocol: ProxyProtocol, selected: Boolean, country: C
     Box(
         modifier = Modifier
             .size(42.dp)
-            .background(color.copy(alpha = if (selected) 0.18f else 0.11f), RoundedCornerShape(13.dp))
-            .border(1.dp, color.copy(alpha = 0.26f), RoundedCornerShape(13.dp)),
+            .then(
+                if (Neo.active) {
+                    Modifier.neoSurface(CircleShape, depth = 3.5.dp)
+                } else {
+                    Modifier
+                        .background(color.copy(alpha = if (selected) 0.18f else 0.11f), RoundedCornerShape(13.dp))
+                        .border(1.dp, color.copy(alpha = 0.26f), RoundedCornerShape(13.dp))
+                },
+            ),
         contentAlignment = Alignment.Center,
     ) {
         if (country.isKnown) {
@@ -1182,7 +1205,7 @@ private fun PhoneImportQrDialog(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFF262A32),
         title = {
-            Text(homeText("Add configs from phone", "افزودن کانفیگ با موبایل"), color = Color.White)
+            Text(homeText("Add configs from phone", "افزودن کانفیگ با موبایل"), color = UacColors.TextPrimary)
         },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {

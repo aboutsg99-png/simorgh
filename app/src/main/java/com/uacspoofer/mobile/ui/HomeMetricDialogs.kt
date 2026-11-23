@@ -95,25 +95,25 @@ private val DialogSurface: Color
     get() = when (com.uacspoofer.mobile.ui.theme.UacThemeState.theme) {
         com.uacspoofer.mobile.ui.theme.AppTheme.SOLARIS -> com.uacspoofer.mobile.ui.theme.UacColors.Surface
         com.uacspoofer.mobile.ui.theme.AppTheme.NEON -> Color(0xFF140820)
-        com.uacspoofer.mobile.ui.theme.AppTheme.CLASSIC -> Color(0xFF0A1623)
+        else -> com.uacspoofer.mobile.ui.theme.UacColors.BackgroundMiddle
     }
 private val DialogInnerSurface: Color
     get() = when (com.uacspoofer.mobile.ui.theme.UacThemeState.theme) {
         com.uacspoofer.mobile.ui.theme.AppTheme.SOLARIS -> Color(0xFF161A36)
         com.uacspoofer.mobile.ui.theme.AppTheme.NEON -> Color(0xFF1A0B2E)
-        com.uacspoofer.mobile.ui.theme.AppTheme.CLASSIC -> Color(0xFF0D1C2B)
+        else -> com.uacspoofer.mobile.ui.theme.UacColors.Surface
     }
 private val DialogBorder: Color
     get() = when (com.uacspoofer.mobile.ui.theme.UacThemeState.theme) {
         com.uacspoofer.mobile.ui.theme.AppTheme.SOLARIS -> com.uacspoofer.mobile.ui.theme.UacColors.CardBorder
         com.uacspoofer.mobile.ui.theme.AppTheme.NEON -> Color(0x66FF2BD6)
-        com.uacspoofer.mobile.ui.theme.AppTheme.CLASSIC -> Color(0x5536516D)
+        else -> com.uacspoofer.mobile.ui.theme.UacColors.CardBorder
     }
 private val DialogBlue: Color
     get() = when (com.uacspoofer.mobile.ui.theme.UacThemeState.theme) {
         com.uacspoofer.mobile.ui.theme.AppTheme.SOLARIS -> com.uacspoofer.mobile.ui.theme.UacColors.NeonCyan
         com.uacspoofer.mobile.ui.theme.AppTheme.NEON -> Color(0xFF22E7FF)
-        com.uacspoofer.mobile.ui.theme.AppTheme.CLASSIC -> Color(0xFF45B7FF)
+        else -> com.uacspoofer.mobile.ui.theme.UacColors.DisconnectedBlue
     }
 
 @Composable

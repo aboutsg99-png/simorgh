@@ -184,7 +184,7 @@ private fun LogsHeader(onMenuClick: () -> Unit) {
             onClick = onMenuClick,
             modifier = Modifier.openDrawerOnDpadLeft(onMenuClick),
         ) {
-            Icon(Icons.Rounded.Menu, "Open navigation menu", tint = Color.White)
+            Icon(Icons.Rounded.Menu, "Open navigation menu", tint = UacColors.TextPrimary)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(

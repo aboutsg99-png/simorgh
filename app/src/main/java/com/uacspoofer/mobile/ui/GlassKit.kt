@@ -34,7 +34,12 @@ internal object Glass {
 
 /** Frosted translucent surface with a gradient highlight edge. */
 internal fun Modifier.glassSurface(shape: Shape, tint: Color = Color.Transparent): Modifier =
-    this
+    if (Neo.active) {
+        // Graphite and Mist: raised neumorphic card with the light glass layer on top.
+        this
+            .neoSurface(shape)
+            .then(if (tint.alpha > 0f) Modifier.background(tint, shape) else Modifier)
+    } else this
         .then(
             if (UacColors.SurfaceOverride.alpha > 0f) Modifier.background(UacColors.SurfaceOverride, shape)
             else Modifier.background(Glass.Fill, shape),
@@ -52,7 +57,12 @@ internal fun GlassBackdrop(
     bottom: Color = UacColors.BackgroundBottom,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    Box(modifier.fillMaxSize().background(Brush.verticalGradient(listOf(top, middle, bottom)))) {
+    Box(
+        modifier.fillMaxSize().then(
+            if (Neo.active) Modifier.neoBackground()
+            else Modifier.background(Brush.verticalGradient(listOf(top, middle, bottom))),
+        ),
+    ) {
         GlassLights(accent, UacColors.NeonCyan)
         content()
     }
@@ -60,6 +70,8 @@ internal fun GlassBackdrop(
 
 @Composable
 internal fun GlassLights(primary: Color, secondary: Color) {
+    // The neumorphic themes are flat: shadows need an even base colour.
+    if (Neo.active) return
     // Radial falloff already reads as blurred light; no RenderEffect, so the
     // backdrop costs one cached draw and never re-renders while scrolling.
     Canvas(Modifier.fillMaxSize()) {

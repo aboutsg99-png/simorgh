@@ -64,6 +64,7 @@ import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material.icons.outlined.VerifiedUser
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.DisposableEffect
@@ -223,6 +224,90 @@ internal fun HomeHeader(
         return
     }
 
+    if (Neo.active) {
+        val brandBrush = rememberNeoAccentBrush()
+        Column(modifier = modifier.zIndex(8f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().height(if (compact) 46.dp else 50.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                NeoIconButton(
+                    icon = Icons.Rounded.Menu,
+                    contentDescription = "Open navigation menu",
+                    onClick = onMenuClick,
+                    tint = UacColors.TextPrimary,
+                    size = if (compact) 42.dp else 46.dp,
+                    modifier = Modifier
+                        .focusProperties { canFocus = !drawerOpen }
+                        .trackHomeSlot(HomeRemoteSlot.Menu)
+                        .openDrawerOnDpadLeft(onMenuClick)
+                        .keyboardFocusRing(),
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    homeText("Simorgh", "سیمرغ"),
+                    color = UacColors.TextPrimary,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontFamily = homeLocalizedFont(),
+                    maxLines = 1,
+                )
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .background(brandBrush, RoundedCornerShape(9.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Outlined.AutoAwesome,
+                        contentDescription = null,
+                        tint = Neo.onAccent,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                NeoIconTile(
+                    icon = Icons.Outlined.VerifiedUser,
+                    tint = accent,
+                    size = if (compact) 42.dp else 46.dp,
+                )
+            }
+            Spacer(Modifier.height(if (compact) 10.dp else 14.dp))
+            EngineSwitchRail(
+                selected = engineMode,
+                pending = pendingEngine,
+                compact = compact,
+                enabled = pendingEngine == null,
+                onSelect = { target ->
+                    if (pendingEngine != null || target == engineStore.snapshot()) return@EngineSwitchRail
+                    if (canChangeEngineMode(ConnectionStateStore.state.value)) {
+                        engineStore.setMode(target)
+                    } else {
+                        pendingEngine = target
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (onEngineLaidOut != null) {
+                            Modifier.onGloballyPositioned(onEngineLaidOut)
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .then(
+                        if (guideSession?.step == HomeGuideStep.Engine) {
+                            Modifier.guideTargetDpad(guideSession.gotIt)
+                        } else {
+                            Modifier
+                        },
+                    ),
+            )
+        }
+        return
+    }
+
     Box(
         modifier = modifier
             .height(headerHeight)
@@ -283,6 +368,21 @@ internal fun HomeHeader(
 internal fun AppTitle(compact: Boolean, accent: Color) {
     val engineMode = rememberDisplayedEngineMode()
     val neonTitle = styleTokens()
+    if (neonTitle == null && Neo.active) {
+        // The neumorphic header already shows the brand and the engine rail; keep only a
+        // quiet engine subtitle here.
+        val info = engineMode.info
+        Text(
+            homeText(info.subtitleEn, info.subtitleFa),
+            color = UacColors.TextSecondary,
+            fontSize = if (compact) 11.sp else 12.sp,
+            fontFamily = homeLocalizedFont(),
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            modifier = Modifier.padding(top = if (compact) 6.dp else 10.dp),
+        )
+        return
+    }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -351,6 +451,43 @@ internal fun ConnectButton(
     diameter: Dp,
     onClick: () -> Unit,
     halo: Dp = 54.dp,
+) {
+    if (styleTokens() == null && Neo.active) {
+        val label = when (state) {
+            ConnectionState.DISCONNECTED -> homeText("CONNECT", "اتصال")
+            ConnectionState.CONNECTING -> homeText("CANCEL", "لغو")
+            ConnectionState.CONNECTED -> homeText("DISCONNECT", "قطع اتصال")
+            ConnectionState.DISCONNECTING -> homeText("DISCONNECTING...", "در حال قطع...")
+            ConnectionState.ERROR -> homeText("RETRY", "تلاش دوباره")
+        }
+        Box(
+            modifier = Modifier
+                .size(diameter + halo)
+                .trackHomeSlot(HomeRemoteSlot.Connect),
+            contentAlignment = Alignment.Center,
+        ) {
+            NeoPowerButton(
+                state = state,
+                accent = accent,
+                diameter = diameter,
+                label = label,
+                enabled = state != ConnectionState.DISCONNECTING,
+                onClick = onClick,
+                font = homeLocalizedFont(),
+            )
+        }
+        return
+    }
+    LegacyConnectButton(state, accent, diameter, onClick, halo)
+}
+
+@Composable
+private fun LegacyConnectButton(
+    state: ConnectionState,
+    accent: Color,
+    diameter: Dp,
+    onClick: () -> Unit,
+    halo: Dp,
 ) {
     val isPersian = LocalHomePersian.current
     val localizedFont = homeLocalizedFont()
@@ -1097,10 +1234,19 @@ internal fun ConnectionStatus(state: ConnectionState, accent: Color) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = status,
-                color = statusColor,
-                fontSize = neonStatus?.statusSize?.sp ?: 15.sp,
-                fontWeight = if (neonStatus != null) FontWeight(neonStatus.statusWeight) else FontWeight.Medium,
+                text = if (neonStatus == null && Neo.active) {
+                    androidx.compose.ui.text.buildAnnotatedString {
+                        pushStyle(androidx.compose.ui.text.SpanStyle(color = statusColor))
+                        append("\u25CF  ")
+                        pop()
+                        append(status)
+                    }
+                } else {
+                    androidx.compose.ui.text.AnnotatedString(status)
+                },
+                color = if (neonStatus == null && Neo.active) UacColors.TextPrimary else statusColor,
+                fontSize = neonStatus?.statusSize?.sp ?: if (Neo.active) 19.sp else 15.sp,
+                fontWeight = if (neonStatus != null) FontWeight(neonStatus.statusWeight) else if (Neo.active) FontWeight.ExtraBold else FontWeight.Medium,
                 fontFamily = localizedFont,
                 textAlign = TextAlign.Center,
                 style = TextStyle(

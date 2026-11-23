@@ -2,6 +2,7 @@ package com.uacspoofer.mobile.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -239,7 +240,7 @@ internal fun TorCountryScreen(onMenuClick: () -> Unit) {
                             unfocusedBorderColor = Color.White.copy(alpha = 0.08f),
                             cursorColor = accent,
                             focusedContainerColor = Color(0x1FFFFFFF),
-                            unfocusedContainerColor = Color(0x66101C29),
+                            unfocusedContainerColor = UacColors.Surface.copy(alpha = 0.6f),
                         ),
                     )
                     Spacer(Modifier.height(12.dp))
@@ -248,6 +249,9 @@ internal fun TorCountryScreen(onMenuClick: () -> Unit) {
                         state = listState,
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(
+                            start = 8.dp,
+                            end = 8.dp,
+                            top = 6.dp,
                             bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 20.dp,
                         ),
                     ) {
@@ -346,16 +350,17 @@ internal fun TorCountryTopBar(
             onClick = onMenuClick,
             modifier = Modifier
                 .size(46.dp)
-                .background(Color(0x1FFFFFFF), CircleShape)
-                .border(1.dp, Color.White.copy(alpha = 0.08f), CircleShape)
+                .neoOr(RoundedCornerShape(15.dp)) {
+                    background(Color(0x1FFFFFFF), CircleShape).border(1.dp, Color.White.copy(alpha = 0.08f), CircleShape)
+                }
                 .openDrawerOnDpadLeft(onMenuClick),
         ) {
-            Icon(Icons.Outlined.Menu, homeText("Open navigation", "بازکردن منو"), tint = Color.White)
+            Icon(Icons.Outlined.Menu, homeText("Open navigation", "بازکردن منو"), tint = UacColors.TextPrimary)
         }
         Column(Modifier.weight(1f)) {
             Text(
                 homeText("Select country", "انتخاب کشور"),
-                color = Color.White,
+                color = UacColors.TextPrimary,
                 fontSize = if (compact) 18.sp else 22.sp,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = if (isPersian) TextAlign.Right else TextAlign.Start,
@@ -410,21 +415,34 @@ internal fun TorCountryRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(
-                when {
-                    remoteFocused -> UacColors.DisconnectedBlue.copy(alpha = 0.18f)
-                    selected -> accent.copy(alpha = 0.075f)
-                    else -> Color(0x1FFFFFFF)
+            .then(
+                if (Neo.active) {
+                    Modifier
+                        .neoSurface(Neo.RowShape, depth = if (selected) 5.dp else 3.5.dp)
+                        .clip(Neo.RowShape)
+                        .then(
+                            if (remoteFocused) Modifier.background(UacColors.DisconnectedBlue.copy(alpha = 0.18f), Neo.RowShape)
+                            else Modifier,
+                        )
+                } else {
+                    Modifier.background(
+                        when {
+                            remoteFocused -> UacColors.DisconnectedBlue.copy(alpha = 0.18f)
+                            selected -> accent.copy(alpha = 0.075f)
+                            else -> Color(0x1FFFFFFF)
+                        },
+                        shape,
+                    )
                 },
-                shape,
             )
             .border(
                 width = if (remoteFocused) 2.dp else 1.dp,
                 color = when {
                     remoteFocused -> UacColors.DisconnectedBlue
+                    Neo.active && !selected -> Color.Transparent
                     else -> accent.copy(alpha = if (selected) 0.48f else 0.13f)
                 },
-                shape,
+                shape = if (Neo.active) Neo.RowShape else shape,
             )
             .semantics {
                 this.selected = selected
@@ -443,7 +461,7 @@ internal fun TorCountryRow(
         Column(Modifier.weight(1f)) {
             Text(
                 title,
-                color = Color.White,
+                color = UacColors.TextPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -469,7 +487,9 @@ internal fun TorCountryRow(
         }
         if (selected) {
             Box(
-                modifier = Modifier.size(30.dp).background(accent.copy(alpha = 0.13f), CircleShape),
+                modifier = Modifier.size(30.dp).neoOr(CircleShape, depth = 2.5.dp, inset = true) {
+                    background(accent.copy(alpha = 0.13f), CircleShape)
+                },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(Icons.Outlined.Check, homeText("Selected", "انتخاب‌شده"), tint = accent, modifier = Modifier.size(18.dp))
@@ -484,8 +504,15 @@ private fun CountryBadge(country: CountryMetadata?, selected: Boolean) {
     Box(
         modifier = Modifier
             .size(42.dp)
-            .background(color.copy(alpha = if (selected) 0.18f else 0.11f), RoundedCornerShape(13.dp))
-            .border(1.dp, color.copy(alpha = 0.26f), RoundedCornerShape(13.dp)),
+            .then(
+                if (Neo.active) {
+                    Modifier.neoSurface(CircleShape, depth = 3.5.dp)
+                } else {
+                    Modifier
+                        .background(color.copy(alpha = if (selected) 0.18f else 0.11f), RoundedCornerShape(13.dp))
+                        .border(1.dp, color.copy(alpha = 0.26f), RoundedCornerShape(13.dp))
+                },
+            ),
         contentAlignment = Alignment.Center,
     ) {
         if (country?.isKnown == true) {

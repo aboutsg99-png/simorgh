@@ -115,10 +115,10 @@ private data class DrawerItem(
     val icon: ImageVector,
 )
 
-private val DrawerBlue get() = if (UacThemeState.isNeon) UacColors.DisconnectedBlue else Color(0xFF299EFF)
-private val DrawerText get() = if (UacThemeState.isNeon) UacColors.TextPrimary else Color(0xFFE7EEF8)
-private val DrawerMuted get() = if (UacThemeState.isNeon) UacColors.TextSecondary else Color(0xFF98A9BF)
-private val DrawerDivider get() = if (UacThemeState.isNeon) UacColors.Divider else Color(0x263E5874)
+private val DrawerBlue get() = if (UacThemeState.isNeon) UacColors.DisconnectedBlue else Neo.accentEnd
+private val DrawerText get() = UacColors.TextPrimary
+private val DrawerMuted get() = UacColors.TextSecondary
+private val DrawerDivider get() = if (UacThemeState.isNeon) UacColors.Divider else Neo.hairline
 
 internal fun DrawerDestination.visibleFor(mode: EngineMode): Boolean = when (this) {
     DrawerDestination.SNI_MAKER,
@@ -260,11 +260,7 @@ internal fun AppDrawer(
                             com.uacspoofer.mobile.ui.theme.UacColors.BackgroundBottom,
                         )
                     } else {
-                        listOf(
-                        Color(0xFF0A192C),
-                        Color(0xFF071526),
-                        Color(0xFF09182B),
-                        )
+                        listOf(Neo.bg, Neo.bg)
                     },
                 ),
             )
@@ -273,7 +269,7 @@ internal fun AppDrawer(
                 if (com.uacspoofer.mobile.ui.theme.UacThemeState.isNeon) {
                     com.uacspoofer.mobile.ui.theme.UacColors.NeonMagenta.copy(alpha = 0.35f)
                 } else {
-                    Color(0x4A34516F)
+                    Neo.hairline
                 },
                 panelShape,
             ),
@@ -419,6 +415,29 @@ private fun DrawerNavItem(
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
+    if (Neo.active) {
+        val label = drawerLabel(item, engineMode)
+        val engineInfo = when (item.destination) {
+            DrawerDestination.ADVANCED_SETTINGS -> EngineCatalog.Parvaz
+            DrawerDestination.POW_SETTINGS -> EngineCatalog.Shahpar
+            DrawerDestination.TOR_SETTINGS -> EngineCatalog.Sayeh
+            DrawerDestination.DIRECT_SETTINGS -> EngineCatalog.Tir
+            else -> null
+        }
+        NeoListRow(
+            icon = item.icon,
+            title = label,
+            subtitle = engineInfo?.subtitle(),
+            iconTint = if (selected) Neo.accentStart else Neo.muted,
+            selected = selected,
+            font = homeLocalizedFont(),
+            compact = compact,
+            enabled = enabled,
+            onClick = onClick,
+            modifier = modifier,
+        )
+        return
+    }
     val shape = RoundedCornerShape(16.dp)
     val background = if (selected) {
         Brush.horizontalGradient(
@@ -469,9 +488,20 @@ private fun DrawerNavItem(
             )
             Spacer(Modifier.width(if (compact) 11.dp else 14.dp))
             Text(
-                text = homeText(
-                    item.label,
-                    when (item.destination) {
+                text = drawerLabel(item, engineMode),
+                color = if (selected) DrawerText else DrawerMuted,
+                fontSize = if (compact) 12.5.sp else 14.sp,
+                fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+                fontFamily = homeLocalizedFont(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun drawerLabel(item: DrawerItem, engineMode: EngineMode): String = homeText(
+    item.label,
+    when (item.destination) {
                         DrawerDestination.HOME -> "خانه"
                         DrawerDestination.CONFIGS -> if (engineMode.isTor || engineMode.isPow) "انتخاب کشور" else "کانفیگ‌ها"
                         DrawerDestination.SNI_MAKER -> "ساخت کانفیگ"
@@ -486,15 +516,7 @@ private fun DrawerNavItem(
                         DrawerDestination.DIRECT_SETTINGS -> "تنظیمات تیر"
                         DrawerDestination.SUPPORT -> "پشتیبانی"
                     },
-                ),
-                color = if (selected) DrawerText else DrawerMuted,
-                fontSize = if (compact) 12.5.sp else 14.sp,
-                fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-                fontFamily = homeLocalizedFont(),
-            )
-        }
-    }
-}
+)
 
 @Composable
 private fun DrawerSupportCard(
@@ -511,9 +533,16 @@ private fun DrawerSupportCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(DrawerBlue.copy(alpha = 0.06f))
-            .border(1.dp, DrawerBlue.copy(alpha = 0.16f), shape)
+            .then(
+                if (Neo.active) {
+                    Modifier.neoSurface(Neo.RowShape, depth = 4.dp).clip(Neo.RowShape)
+                } else {
+                    Modifier
+                        .clip(shape)
+                        .background(DrawerBlue.copy(alpha = 0.06f))
+                        .border(1.dp, DrawerBlue.copy(alpha = 0.16f), shape)
+                },
+            )
             .focusRequester(githubFocus)
             .dpadMovesFocus(down = downFocus, up = upFocus)
             .keepFocusInDrawerHorizontally()
@@ -539,7 +568,7 @@ private fun DrawerSupportCard(
             Icon(
                 imageVector = Icons.Outlined.StarOutline,
                 contentDescription = null,
-                tint = Color(0xFFAAD7FF),
+                tint = DrawerBlue,
                 modifier = Modifier.size(if (compact) 16.dp else 18.dp),
             )
         }
@@ -596,13 +625,13 @@ private fun DrawerLanguageRow(
             Icon(
                 imageVector = Icons.Outlined.Language,
                 contentDescription = null,
-                tint = Color(0xFFA9BAD0),
+                tint = DrawerMuted,
                 modifier = Modifier.size(if (compact) 18.dp else 21.dp),
             )
             Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
             Text(
                 text = homeText("Language", "زبان"),
-                color = Color(0xFFC8D4E5),
+                color = DrawerText,
                 fontSize = if (compact) 11.sp else 12.5.sp,
                 fontWeight = FontWeight.Medium,
                 fontFamily = homeLocalizedFont(),
@@ -618,7 +647,7 @@ private fun DrawerLanguageRow(
                     if (com.uacspoofer.mobile.ui.theme.UacThemeState.isNeon) {
                         com.uacspoofer.mobile.ui.theme.UacColors.Surface
                     } else {
-                        Color(0xFF07111F)
+                        Neo.bg
                     },
                 )
                 .border(
@@ -626,7 +655,7 @@ private fun DrawerLanguageRow(
                     if (com.uacspoofer.mobile.ui.theme.UacThemeState.isNeon) {
                         com.uacspoofer.mobile.ui.theme.UacColors.CardBorder
                     } else {
-                        Color(0x393B5875)
+                        Neo.hairline
                     },
                     RoundedCornerShape(12.dp),
                 )
@@ -696,7 +725,7 @@ private fun LanguageSegment(
     ) {
         Text(
             text = text,
-            color = if (selected) Color.White else DrawerMuted,
+            color = if (selected) (if (UacThemeState.isNeon) Color.White else Neo.onAccent) else DrawerMuted,
             fontSize = if (compact) 9.sp else 10.5.sp,
             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
             fontFamily = if (localizedFont) homeLocalizedFont() else null,

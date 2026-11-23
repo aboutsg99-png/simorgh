@@ -70,12 +70,13 @@ internal fun XraySettingsScreen(onBack: () -> Unit) {
             PowCompactHeader(
                 accent = accent,
                 onBack = onBack,
-                title = homeText("Parvaz", "پرواز"),
-                subtitle = homeText("Engine 1 settings", "تنظیمات موتور ۱"),
-                icon = Icons.Outlined.Tune,
+                title = EngineCatalog.Parvaz.displayName(),
+                subtitle = EngineCatalog.Parvaz.subtitle(),
+                icon = EngineCatalog.Parvaz.icon,
             )
         },
     ) {
+        item { IranDirectQuickCard() }
         item { XraySettingsPanel() }
     }
 }

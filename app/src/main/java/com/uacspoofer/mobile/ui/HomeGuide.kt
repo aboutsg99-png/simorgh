@@ -247,7 +247,7 @@ internal fun HomeGuideOverlay(
                 ) {
                     Text(
                         text = title,
-                        color = Color.White,
+                        color = UacColors.TextPrimary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = localizedFont,
@@ -284,7 +284,7 @@ internal fun HomeGuideOverlay(
                     ) {
                         Text(
                             text = homeText("Got it", "متوجه شدم"),
-                            color = Color.White,
+                            color = UacColors.TextPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             fontFamily = localizedFont,

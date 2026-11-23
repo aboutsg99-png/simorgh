@@ -138,7 +138,7 @@ internal fun NeonHomeTuner(
     val context = LocalContext.current
     val store = remember(context) { AppThemeStore.get(context) }
     val theme = UacThemeState.theme
-    if (theme == AppTheme.CLASSIC) return
+    if (!theme.isNeonFamily) return
 
     val selectedId by store.selectedId.collectAsStateWithLifecycle()
     val savedThemes by store.savedThemes.collectAsStateWithLifecycle()

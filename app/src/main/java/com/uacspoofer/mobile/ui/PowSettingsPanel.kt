@@ -116,14 +116,14 @@ import kotlinx.coroutines.withContext
 internal data class PowMenuChoice(val id: String, val title: String, val hint: String = "")
 
 /** One radius everywhere on this screen; pills are capsules. */
-internal val PowShape = RoundedCornerShape(12.dp)
-internal val PowTileShape = RoundedCornerShape(10.dp)
+internal val PowShape = RoundedCornerShape(18.dp)
+internal val PowTileShape = RoundedCornerShape(12.dp)
 internal val PowPad = 12.dp
 internal val PowGap = 10.dp
 internal val PowHintSize = 12.sp
 internal val PowHintLine = 17.sp
-internal val PowBorder = Color.White.copy(alpha = 0.08f)
-internal val PowSheetColor get() = UacColors.SurfaceOverride.orDefault(Color(0xFF262A32))
+internal val PowBorder: Color get() = if (Neo.active) Neo.hairline else Color.White.copy(alpha = 0.08f)
+internal val PowSheetColor get() = UacColors.SurfaceOverride.orDefault(UacColors.Surface)
 internal val PowCardBrush get() = ToolCardBrush
 
 @Composable
@@ -136,6 +136,7 @@ internal fun PowSettingsScreen(onBack: () -> Unit) {
         header = { PowCompactHeader(accent = accent, onBack = onBack) },
     ) {
         item { PowLivePathButton(accent = accent, onClick = { pathVisible = true }) }
+        item { IranDirectQuickCard() }
         item { PowSettingsPanel() }
     }
     PowLivePathDialog(visible = pathVisible, onDismissRequest = { pathVisible = false })
@@ -145,9 +146,9 @@ internal fun PowSettingsScreen(onBack: () -> Unit) {
 internal fun PowCompactHeader(
     accent: Color,
     onBack: () -> Unit,
-    title: String = homeText("Shahpar", "شاهپر"),
-    subtitle: String = homeText("Connection settings", "تنظیمات اتصال"),
-    icon: ImageVector = Icons.Outlined.Hub,
+    title: String = EngineCatalog.Shahpar.displayName(),
+    subtitle: String = EngineCatalog.Shahpar.subtitle(),
+    icon: ImageVector = EngineCatalog.Shahpar.icon,
 ) {
     val backLabel = homeText("Back to settings", "برگشت به تنظیمات")
     Row(
@@ -157,10 +158,14 @@ internal fun PowCompactHeader(
     ) {
         Box(
             modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(Color(0x1FFFFFFF))
-                .border(1.dp, PowBorder, CircleShape)
+                .size(if (Neo.active) 44.dp else 40.dp)
+                .then(
+                    if (Neo.active) {
+                        Modifier.neoSurface(RoundedCornerShape(15.dp), depth = 4.dp).clip(RoundedCornerShape(15.dp))
+                    } else {
+                        Modifier.clip(CircleShape).background(Color(0x1FFFFFFF)).border(1.dp, PowBorder, CircleShape)
+                    },
+                )
                 .clickable(onClick = onBack)
                 .openDrawerOnDpadLeft(onBack),
             contentAlignment = Alignment.Center,
@@ -172,14 +177,18 @@ internal fun PowCompactHeader(
                 modifier = Modifier.size(22.dp),
             )
         }
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .background(accent.copy(alpha = 0.14f), PowShape)
-                .border(1.dp, accent.copy(alpha = 0.30f), PowShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
+        if (Neo.active) {
+            NeoIconTile(icon = icon, tint = accent, size = 40.dp)
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(accent.copy(alpha = 0.14f), PowShape)
+                    .border(1.dp, accent.copy(alpha = 0.30f), PowShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
+            }
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -807,9 +816,13 @@ internal fun PowCard(content: @Composable () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(PowShape)
-            .glassSurface(PowShape)
-            .border(1.dp, PowBorder, PowShape),
+            .then(
+                if (Neo.active) {
+                    Modifier.neoSurface(Neo.CardShape).clip(Neo.CardShape)
+                } else {
+                    Modifier.clip(PowShape).glassSurface(PowShape).border(1.dp, PowBorder, PowShape)
+                },
+            ),
         content = { content() },
     )
 }
@@ -825,6 +838,10 @@ internal fun PowRowDivider() {
 
 @Composable
 internal fun PowIconTile(icon: ImageVector, tint: Color) {
+    if (Neo.active) {
+        NeoIconTile(icon = icon, tint = tint, size = 34.dp)
+        return
+    }
     Box(
         modifier = Modifier
             .size(32.dp)
@@ -847,9 +864,16 @@ internal fun PowPill(
     Row(
         modifier = modifier
             .widthIn(max = 190.dp)
-            .clip(CircleShape)
-            .background(tint.copy(alpha = 0.12f))
-            .border(1.dp, tint.copy(alpha = 0.26f), CircleShape)
+            .then(
+                if (Neo.active) {
+                    Modifier.neoSurface(CircleShape, depth = 2.5.dp, inset = true).clip(CircleShape)
+                } else {
+                    Modifier
+                        .clip(CircleShape)
+                        .background(tint.copy(alpha = 0.12f))
+                        .border(1.dp, tint.copy(alpha = 0.26f), CircleShape)
+                },
+            )
             .padding(start = 10.dp, end = if (chevron) 6.dp else 10.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -914,14 +938,18 @@ internal fun PowSwitchRow(
             }
         }
         // The row handles the tap, so the switch skips its 48dp touch box.
-        Switch(
-            checked = checked,
-            onCheckedChange = null,
-            colors = SwitchDefaults.colors(
-                checkedTrackColor = accent,
-                checkedThumbColor = Color.White,
-            ),
-        )
+        if (Neo.active) {
+            NeoToggle(checked = checked, onCheckedChange = null)
+        } else {
+            Switch(
+                checked = checked,
+                onCheckedChange = null,
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = accent,
+                    checkedThumbColor = Color.White,
+                ),
+            )
+        }
     }
 }
 

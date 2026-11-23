@@ -12,6 +12,15 @@ enum class AppTheme {
     CLASSIC,
     NEON,
     SOLARIS,
+    MIST,
+    MIDNIGHT,
+    SAHAR,
+    JANGAL,
+    FIROUZEH,
+    ;
+
+    /** Neon and Solaris keep the original glow look and the token editor. */
+    val isNeonFamily: Boolean get() = this == NEON || this == SOLARIS
 }
 
 internal data class SavedAppTheme(
@@ -31,6 +40,56 @@ class AppThemeStore private constructor(context: Context) {
         mutableSaved.value.firstOrNull { it.id == id && it.base == mutable.value }?.id
     })
     internal val selectedId = mutableSelectedId.asStateFlow()
+    private val mutableStyle = MutableStateFlow(readStyle())
+    internal val style = mutableStyle.asStateFlow()
+
+    /** Persist the Appearance personalisation and apply it right away. */
+    internal fun updateStyle(block: (NeoStyle) -> NeoStyle) {
+        val next = block(mutableStyle.value)
+        if (next == mutableStyle.value) return
+        mutableStyle.value = next
+        NeoStyleState.style = next
+        prefs.edit()
+            .putString(STYLE_ACCENT, next.accentId)
+            .putFloat(STYLE_HUE, next.customHue)
+            .putString(STYLE_POWER, next.power.name)
+            .putFloat(STYLE_GLASS, next.glass)
+            .putFloat(STYLE_DEPTH, next.depth)
+            .putFloat(STYLE_CORNER, next.corner)
+            .putBoolean(STYLE_COMPACT, next.compact)
+            .putString(STYLE_BACKDROP, next.backdrop.name)
+            .putBoolean(STYLE_DAY, next.themeOfDay)
+            .putStringSet(STYLE_DAY_THEMES, next.dayThemes)
+            .putBoolean(STYLE_AUTO_DARK, next.autoDarkLight)
+            .apply()
+        refreshAutomatic()
+    }
+
+    /** Re-evaluates theme of the day and auto dark/light; cheap, safe to call often. */
+    internal fun refreshAutomatic() {
+        if (mutableSelectedId.value != null) return
+        val shown = effectiveTheme(mutable.value, mutableStyle.value)
+        if (UacThemeState.theme != shown) UacThemeState.theme = shown
+    }
+
+    private fun readStyle(): NeoStyle {
+        val defaults = NeoStyle()
+        return NeoStyle(
+            accentId = prefs.getString(STYLE_ACCENT, defaults.accentId) ?: defaults.accentId,
+            customHue = prefs.getFloat(STYLE_HUE, defaults.customHue),
+            power = PowerButtonStyle.entries.firstOrNull { it.name == prefs.getString(STYLE_POWER, null) }
+                ?: defaults.power,
+            glass = prefs.getFloat(STYLE_GLASS, defaults.glass),
+            depth = prefs.getFloat(STYLE_DEPTH, defaults.depth),
+            corner = prefs.getFloat(STYLE_CORNER, defaults.corner),
+            compact = prefs.getBoolean(STYLE_COMPACT, defaults.compact),
+            backdrop = NeoBackdrop.entries.firstOrNull { it.name == prefs.getString(STYLE_BACKDROP, null) }
+                ?: defaults.backdrop,
+            themeOfDay = prefs.getBoolean(STYLE_DAY, defaults.themeOfDay),
+            dayThemes = prefs.getStringSet(STYLE_DAY_THEMES, null)?.toSet() ?: defaults.dayThemes,
+            autoDarkLight = prefs.getBoolean(STYLE_AUTO_DARK, defaults.autoDarkLight),
+        ).also { NeoStyleState.style = it }
+    }
 
     fun set(theme: AppTheme) {
         prefs.edit().putString(KEY, theme.name).remove(SAVED_ID).apply()
@@ -45,7 +104,7 @@ class AppThemeStore private constructor(context: Context) {
 
     internal fun saveTheme(name: String, base: AppTheme, tokens: NeonTokens): Boolean {
         val title = name.trim()
-        if (title.isBlank() || title.length > MAX_NAME_LENGTH || base == AppTheme.CLASSIC ||
+        if (title.isBlank() || title.length > MAX_NAME_LENGTH || !base.isNeonFamily ||
             mutableSaved.value.any { it.name.equals(title, ignoreCase = true) }
         ) return false
         val saved = SavedAppTheme(UUID.randomUUID().toString(), title, base, tokens)
@@ -76,11 +135,11 @@ class AppThemeStore private constructor(context: Context) {
         when (theme) {
             AppTheme.NEON -> NeonLive.tokens = tokens ?: NeonTokens()
             AppTheme.SOLARIS -> SolarisLive.tokens = tokens ?: SolarisTokens
-            AppTheme.CLASSIC -> Unit
+            else -> Unit
         }
         mutable.value = theme
         mutableSelectedId.value = saved?.id
-        UacThemeState.theme = theme
+        UacThemeState.theme = if (saved == null) effectiveTheme(theme, mutableStyle.value) else theme
     }
 
     private fun readSaved(): List<SavedAppTheme> {
@@ -113,6 +172,17 @@ class AppThemeStore private constructor(context: Context) {
         private const val SAVED_THEMES = "saved_themes"
         private const val SAVED_ID = "saved_theme_id"
         internal const val MAX_NAME_LENGTH = 48
+        private const val STYLE_ACCENT = "neo_accent"
+        private const val STYLE_HUE = "neo_custom_hue"
+        private const val STYLE_POWER = "neo_power_style"
+        private const val STYLE_GLASS = "neo_glass"
+        private const val STYLE_DEPTH = "neo_depth"
+        private const val STYLE_CORNER = "neo_corner"
+        private const val STYLE_COMPACT = "neo_compact"
+        private const val STYLE_BACKDROP = "neo_backdrop"
+        private const val STYLE_DAY = "neo_theme_of_day"
+        private const val STYLE_DAY_THEMES = "neo_day_themes"
+        private const val STYLE_AUTO_DARK = "neo_auto_dark_light"
 
         @Volatile
         private var instance: AppThemeStore? = null

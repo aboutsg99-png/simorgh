@@ -82,12 +82,13 @@ internal fun TorSettingsScreen(onBack: () -> Unit) {
             PowCompactHeader(
                 accent = accent,
                 onBack = onBack,
-                title = homeText("Sayeh", "سایه"),
-                subtitle = homeText("Connection settings", "تنظیمات اتصال"),
-                icon = Icons.Outlined.Shield,
+                title = EngineCatalog.Sayeh.displayName(),
+                subtitle = EngineCatalog.Sayeh.subtitle(),
+                icon = EngineCatalog.Sayeh.icon,
             )
         },
     ) {
+        item { IranDirectQuickCard() }
         item { TorSettingsPanel() }
     }
 }
@@ -271,7 +272,7 @@ private fun TorSettingsPanel() {
                                 fontSize = 12.sp,
                             )
                         },
-                        textStyle = TextStyle(color = Color.White, fontSize = 12.5.sp, fontFamily = FontFamily.Monospace, lineHeight = 18.sp),
+                        textStyle = TextStyle(color = UacColors.TextPrimary, fontSize = 12.5.sp, fontFamily = FontFamily.Monospace, lineHeight = 18.sp),
                         colors = torFieldColors(),
                     )
                     PowHint(

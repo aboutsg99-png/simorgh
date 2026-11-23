@@ -204,7 +204,7 @@ internal fun PowCountryScreen(onMenuClick: () -> Unit) {
                                 unfocusedBorderColor = Color.White.copy(alpha = 0.08f),
                                 cursorColor = accent,
                                 focusedContainerColor = Color(0x1FFFFFFF),
-                                unfocusedContainerColor = Color(0x66101C29),
+                                unfocusedContainerColor = UacColors.Surface.copy(alpha = 0.6f),
                             ),
                         )
                         Spacer(Modifier.height(12.dp))
@@ -213,6 +213,9 @@ internal fun PowCountryScreen(onMenuClick: () -> Unit) {
                             state = listState,
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding = PaddingValues(
+                                start = 8.dp,
+                                end = 8.dp,
+                                top = 6.dp,
                                 bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 20.dp,
                             ),
                         ) {

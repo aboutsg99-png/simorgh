@@ -210,7 +210,7 @@ internal fun SniMakerScreen(
         AlertDialog(
             onDismissRequest = { clearConfirmationVisible = false },
             containerColor = Color(0xFF262A32),
-            title = { Text(homeText("Clear results?", "نتیجه‌ها پاک بشن؟"), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold) },
+            title = { Text(homeText("Clear results?", "نتیجه‌ها پاک بشن؟"), color = UacColors.TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold) },
             text = {
                 Text(
                     if (controller.loading || controller.testing || controller.saving) {
@@ -271,12 +271,12 @@ private fun MakerTopBar(
                 .openDrawerOnDpadLeft(onMenuClick),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Menu, homeText("Open navigation", "بازکردن منو"), tint = Color.White, modifier = Modifier.size(22.dp))
+            Icon(Icons.Outlined.Menu, homeText("Open navigation", "بازکردن منو"), tint = UacColors.TextPrimary, modifier = Modifier.size(22.dp))
         }
         Column(Modifier.weight(1f)) {
             Text(
                 homeText("Config Maker", "ساخت کانفیگ"),
-                color = Color.White,
+                color = UacColors.TextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -1370,7 +1370,7 @@ private fun SettingStepper(
             }
             Text(
                 valueText,
-                color = Color.White,
+                color = UacColors.TextPrimary,
                 fontSize = 14.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.width(48.dp),

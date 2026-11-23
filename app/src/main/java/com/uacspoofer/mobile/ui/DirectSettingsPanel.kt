@@ -95,12 +95,13 @@ internal fun DirectSettingsScreen(onBack: () -> Unit, unlocked: Boolean, onUnloc
                 PowCompactHeader(
                     accent = accent,
                     onBack = onBack,
-                    title = homeText("Tir settings", "تنظیمات دایرکت"),
-                    subtitle = homeText("Engine 4", "موتور ۴"),
-                    icon = Icons.Outlined.Bolt,
+                    title = homeText("Tir settings", "تنظیمات تیر"),
+                    subtitle = EngineCatalog.Tir.subtitle(),
+                    icon = EngineCatalog.Tir.icon,
                 )
             },
         ) {
+            item { IranDirectQuickCard() }
             item {
                 DirectConnectionCard(
                     unlocked = unlocked,
