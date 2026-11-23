@@ -122,6 +122,11 @@ import com.uacspoofer.mobile.profiles.ProxyProfile
 import com.uacspoofer.mobile.profiles.ProxyProtocol
 import com.uacspoofer.mobile.ui.theme.UacColors
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.uacspoofer.mobile.profiles.SubscriptionManager
+import com.uacspoofer.mobile.profiles.SubscriptionStore
+import com.uacspoofer.mobile.profiles.Subscription
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -159,6 +164,10 @@ internal fun ConfigsScreen(
     val wideShell = LocalWideShell.current
     val store = remember(context) { ProfileStore(context) }
     var library by remember { mutableStateOf(store.snapshot()) }
+    val subscriptionStore = remember(context) { SubscriptionStore(context) }
+    var subscriptions by remember { mutableStateOf(subscriptionStore.all()) }
+    var refreshingSubscriptions by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var subscriptionDeleteTarget by remember { mutableStateOf<Subscription?>(null) }
     val latencyCache = remember(context) { ProfileLatencyCache(context) }
     var resolvedCountries by remember { mutableStateOf<Map<String, CountryMetadata>>(emptyMap()) }
     var editorVisible by rememberSaveable { mutableStateOf(false) }
@@ -318,7 +327,47 @@ internal fun ConfigsScreen(
         }
     }
 
+    fun runSubscription(url: String, existingId: String?) {
+        val key = existingId ?: url.trim()
+        if (key in refreshingSubscriptions) return
+        refreshingSubscriptions = refreshingSubscriptions + key
+        notify(if (isPersian) "در حال دریافت اشتراک…" else "Fetching subscription...")
+        scope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    SubscriptionManager.importOrRefresh(context, url, existingId)
+                }
+                library = result.library
+                subscriptions = subscriptionStore.all()
+                val liveIds = library.allProfiles.mapTo(hashSetOf(), ProxyProfile::id)
+                delayStates = delayStates.filterKeys { it in liveIds }
+                notify(
+                    if (isPersian) {
+                        "اشتراک «${result.subscription.name}» به‌روز شد: ${result.addedCount} کانفیگ"
+                    } else {
+                        "Subscription \"${result.subscription.name}\" updated: ${result.addedCount} configs"
+                    },
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                AppLogRepository.warning(LogSource.APP, "Subscription fetch failed", error)
+                notify(
+                    if (isPersian) "دریافت اشتراک انجام نشد: ${error.message ?: "خطای شبکه"}"
+                    else "Subscription fetch failed: ${error.message ?: "network error"}",
+                )
+            } finally {
+                refreshingSubscriptions = refreshingSubscriptions - key
+            }
+        }
+    }
+
     fun consumeImportedText(text: String, optionalName: String? = null): Boolean {
+        if (SubscriptionManager.isSubscriptionUrl(text)) {
+            editorError = null
+            runSubscription(text.trim(), null)
+            return true
+        }
         val result = store.importText(text, optionalName)
         if (result.importedCount == 0) {
             editorError = result.errors.firstOrNull() ?: if (isPersian) "کانفیگ معتبر نیست" else "Invalid configuration"
@@ -440,6 +489,18 @@ internal fun ConfigsScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 104.dp),
                 ) {
+                    items(subscriptions, key = { "subscription:" + it.id }) { subscription ->
+                        val liveIds = library.customProfiles.mapTo(hashSetOf(), ProxyProfile::id)
+                        SubscriptionCard(
+                            subscription = subscription,
+                            configCount = subscription.profileIds.count { it in liveIds },
+                            refreshing = subscription.id in refreshingSubscriptions ||
+                                subscription.url in refreshingSubscriptions,
+                            onRefresh = { runSubscription(subscription.url, subscription.id) },
+                            onDelete = { subscriptionDeleteTarget = subscription },
+                        )
+                    }
+
                     items(displayedProfiles, key = ProxyProfile::id) { profile ->
                         ProfileRow(
                             profile = profile,
@@ -472,7 +533,7 @@ internal fun ConfigsScreen(
                         )
                     }
 
-                    if (library.customProfiles.isEmpty()) {
+                    if (library.customProfiles.isEmpty() && subscriptions.isEmpty()) {
                         item { EmptyProfileHint() }
                     }
                 }
@@ -575,6 +636,37 @@ internal fun ConfigsScreen(
                 ) { Text(homeText("Delete", "حذف")) }
             },
             dismissButton = { OutlinedButton(onClick = { deleteTarget = null }) { Text(homeText("Cancel", "لغو")) } },
+        )
+    }
+
+    subscriptionDeleteTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { subscriptionDeleteTarget = null },
+            containerColor = Color(0xFF262A32),
+            title = { Text(homeText("Delete subscription ${target.name}?", "اشتراک ${target.name} حذف بشه؟"), color = UacColors.TextPrimary) },
+            text = {
+                Text(
+                    homeText(
+                        "The subscription link and every config it added will be removed from this device.",
+                        "لینک اشتراک و همه‌ی کانفیگ‌هایی که اضافه کرده از دستگاه حذف می‌شن.",
+                    ),
+                    color = UacColors.TextSecondary,
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        library = SubscriptionManager.delete(context, target.id)
+                        latencyCache.removeAll(target.profileIds.toSet())
+                        delayStates = delayStates - target.profileIds.toSet()
+                        subscriptions = subscriptionStore.all()
+                        subscriptionDeleteTarget = null
+                        notify(if (isPersian) "اشتراک حذف شد" else "Subscription deleted")
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD94B5B)),
+                ) { Text(homeText("Delete", "حذف")) }
+            },
+            dismissButton = { OutlinedButton(onClick = { subscriptionDeleteTarget = null }) { Text(homeText("Cancel", "لغو")) } },
         )
     }
 
@@ -1136,12 +1228,12 @@ private fun ProfileEditorSheet(
                 label = {
                     Text(
                         homeText(
-                            "VLESS, Trojan or VMess URI",
-                            "لینک ${configLtr("VLESS")}، ${configLtr("Trojan")} یا ${configLtr("VMess")}",
+                            "VLESS, Trojan or VMess URI, or a subscription link (http/https)",
+                            "لینک ${configLtr("VLESS")}، ${configLtr("Trojan")}، ${configLtr("VMess")} یا لینک اشتراک (${configLtr("http/https")})",
                         ),
                     )
                 },
-                placeholder = { Text("vless://…  trojan://…  vmess://…") },
+                placeholder = { Text("vless://…  trojan://…  vmess://…  https://…") },
                 colors = toolTextFieldColors(accent),
                 textStyle = androidx.compose.ui.text.TextStyle(fontSize = 11.sp),
                 isError = error != null,
