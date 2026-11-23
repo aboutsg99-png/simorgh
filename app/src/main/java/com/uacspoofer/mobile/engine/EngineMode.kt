@@ -7,18 +7,22 @@ enum class EngineMode(val id: String) {
     TOR_WEBTUNNEL("tor_webtunnel"),
     UAC_POW("uac_pow"),
     /** Engine 4: Direct, serverless direct DPI bypass on the bundled Xray core. */
-    UAC_DIRECT("uac_direct");
+    UAC_DIRECT("uac_direct"),
+    /** Engine 5: Rubah, Mozilla's Firefox VPN with the user's own Firefox account (sing-box MASQUE). */
+    FOXY_FIREFOX("foxy_firefox");
 
     val isTor: Boolean get() = this == TOR_WEBTUNNEL
     val isXray: Boolean get() = this == XRAY_CF
     val isPow: Boolean get() = this == UAC_POW
     val isDirect: Boolean get() = this == UAC_DIRECT
+    val isFoxy: Boolean get() = this == FOXY_FIREFOX
 
     fun next(): EngineMode = when (this) {
         XRAY_CF -> TOR_WEBTUNNEL
         TOR_WEBTUNNEL -> UAC_POW
         UAC_POW -> UAC_DIRECT
-        UAC_DIRECT -> XRAY_CF
+        UAC_DIRECT -> FOXY_FIREFOX
+        FOXY_FIREFOX -> XRAY_CF
     }
 
     fun toggled(): EngineMode = next()

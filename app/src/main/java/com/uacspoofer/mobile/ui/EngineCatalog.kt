@@ -79,14 +79,11 @@ internal object EngineCatalog {
         icon = Icons.Outlined.AutoAwesome,
     )
 
-    /**
-     * Reserved for the Firefox VPN engine (branch foxy-engine). It stays off the rail until
-     * that branch adds its [EngineMode]; then set [EngineInfo.mode] here and it appears.
-     */
+    /** Engine 5: Firefox VPN with the user's own Firefox account; country page holds sign-in. */
     val Rubah = EngineInfo(
         key = "foxy", latin = "Rubah", persian = "روباه",
         subtitleEn = "Firefox VPN", subtitleFa = "فایرفاکس وی‌پی‌ان",
-        icon = Icons.Outlined.Pets,
+        icon = Icons.Outlined.Pets, mode = EngineMode.FOXY_FIREFOX,
     )
 
     /** Every known engine, in rail order. */

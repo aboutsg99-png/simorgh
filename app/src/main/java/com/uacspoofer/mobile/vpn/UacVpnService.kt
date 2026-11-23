@@ -34,6 +34,13 @@ import com.uacspoofer.mobile.engine.direct.DirectEngineStore
 import com.uacspoofer.mobile.engine.direct.DirectPhase
 import com.uacspoofer.mobile.engine.direct.DirectStatusStore
 import com.uacspoofer.mobile.engine.tor.TorConnectionCoordinator
+import com.uacspoofer.mobile.engine.foxy.FoxyConnectionCoordinator
+import com.uacspoofer.mobile.engine.foxy.FoxyEngineStore
+import com.uacspoofer.mobile.engine.foxy.FoxyErrors
+import com.uacspoofer.mobile.engine.foxy.FoxyFallback
+import com.uacspoofer.mobile.engine.foxy.FoxyNotSignedInException
+import com.uacspoofer.mobile.engine.foxy.FoxyPhase
+import com.uacspoofer.mobile.engine.foxy.FoxyStatusStore
 import com.uacspoofer.mobile.engine.tor.TorDaemon
 import com.uacspoofer.mobile.engine.tor.TorEngineStore
 import com.uacspoofer.mobile.engine.tor.TorPhase
@@ -161,6 +168,8 @@ class UacVpnService : VpnService() {
     private lateinit var powEngineStore: PowEngineStore
     private lateinit var powCoordinator: PowConnectionCoordinator
     private lateinit var directCoordinator: DirectConnectionCoordinator
+    private lateinit var foxyCoordinator: FoxyConnectionCoordinator
+    @Volatile private var foxyHealthFailures = 0
     private lateinit var networkGuardStore: NetworkGuardStore
 
     override fun onCreate() {
@@ -195,6 +204,7 @@ class UacVpnService : VpnService() {
             runCatching { updateNotification(connected) }
         }
         directCoordinator = DirectConnectionCoordinator(this)
+        foxyCoordinator = FoxyConnectionCoordinator(this)
         networkGuardStore = NetworkGuardStore.get(this)
         androidx.core.content.ContextCompat.registerReceiver(
             this,
@@ -239,6 +249,7 @@ class UacVpnService : VpnService() {
             ACTION_SWITCH_PROFILE -> requestSwitchProfile()
             ACTION_APPLY_TOR_EXIT -> requestApplyTorExit()
             ACTION_APPLY_POW_EXIT -> requestApplyPowExit()
+            ACTION_APPLY_FOXY_COUNTRY -> requestApplyFoxyCountry()
             ACTION_APPLY_DIRECT_EXIT -> requestApplyDirectExit()
             ACTION_REFRESH_LATENCY -> requestLatencyRefresh()
             ACTION_ROUTE_MTU_PROBE -> requestRouteMtuProbe(intent.getStringExtra(EXTRA_ROUTE_PROBE_ID), startId)
@@ -572,6 +583,7 @@ class UacVpnService : VpnService() {
                         activeEngine.isTor -> connectTorEngine(token, settings)
                         activeEngine.isPow -> connectPowEngine(token, settings)
                         activeEngine.isDirect -> connectDirectEngine(token, settings)
+                        activeEngine.isFoxy -> connectFoxyEngine(token, settings)
                         else -> {
                             val profile = profileStore.selectedProfile()
                             connectXray(token, settings, profile)
@@ -596,6 +608,9 @@ class UacVpnService : VpnService() {
                 if (activeEngine.isDirect && ConnectionStateStore.state.value != ConnectionState.CONNECTING) {
                     DirectStatusStore.reset()
                 }
+                if (activeEngine.isFoxy && ConnectionStateStore.state.value != ConnectionState.CONNECTING) {
+                    FoxyStatusStore.reset()
+                }
             } catch (error: Throwable) {
                 if (activeEngine.isDirect && token != generation.get()) return@launch
                 ConnectRescueStore.hide()
@@ -612,6 +627,15 @@ class UacVpnService : VpnService() {
                 }
                 if (activeEngine.isDirect) {
                     DirectStatusStore.update(DirectPhase.FAILED, 0, error.message.orEmpty().ifBlank { "Direct connect failed" })
+                }
+                if (activeEngine.isFoxy) {
+                    val reason = FoxyErrors.persian(error)
+                    FoxyStatusStore.update { it.copy(phase = FoxyPhase.FAILED, detail = reason) }
+                    withContext(Dispatchers.Main) {
+                        runCatching {
+                            android.widget.Toast.makeText(this@UacVpnService, reason, android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    }
                 }
                 Log.e(TAG, "connection worker failed", error)
                 AppLogRepository.error(LogSource.SERVICE, "Connection worker failed", error)
@@ -652,6 +676,10 @@ class UacVpnService : VpnService() {
         PowSocksConnectOnly.setTrafficPaused(paused)
         DomesticSocksSplit.setTrafficPaused(paused)
         when {
+            activeEngine.isFoxy -> {
+                foxyCoordinator.reload(paused)
+                AppLogRepository.info(LogSource.SERVICE, "[FOXY] core reloaded pause=$paused")
+            }
             activeEngine.isPow || activeEngine.isTor -> {
                 // SOCKS split already honors the flag; live sockets were dropped in setTrafficPaused.
                 AppLogRepository.info(
@@ -724,6 +752,7 @@ class UacVpnService : VpnService() {
             "Applying direct whitelist (${hosts.size}): ${hosts.take(8).joinToString()}",
         )
         when {
+            activeEngine.isFoxy -> foxyCoordinator.reload(VpnPauseStore.isPaused())
             activeEngine.isPow || activeEngine.isTor -> {
                 // SOCKS match is live; nothing to rebuild.
                 AppLogRepository.info(LogSource.SERVICE, "Whitelist live for PoW/Tor SOCKS (no reload)")
@@ -839,6 +868,7 @@ class UacVpnService : VpnService() {
     private fun forceTeardown(stopToken: Long) {
         if (generation.get() != stopToken) return
         if (activeEngine.isPow) runCatching { powCoordinator.forceRelease() }
+        runCatching { foxyCoordinator.stop() }
         connectJob?.cancel()
         connectJob = null
         healthJob?.cancel()
@@ -888,7 +918,7 @@ class UacVpnService : VpnService() {
     }
 
     private fun requestSwitchProfile() {
-        if (engineModeStore.snapshot().isTor || engineModeStore.snapshot().isPow) {
+        if (engineModeStore.snapshot().isTor || engineModeStore.snapshot().isPow || engineModeStore.snapshot().isFoxy) {
             AppLogRepository.info(LogSource.SERVICE, "Profile switch ignored while a dedicated engine is selected")
             return
         }
@@ -1584,6 +1614,75 @@ class UacVpnService : VpnService() {
         AppLogRepository.success(LogSource.XRAY, DirectStatusStore.status.value.detail)
     }
 
+    /**
+     * Engine 5 (Rubah / Firefox VPN). If every Mozilla path fails or measures unusably slow,
+     * the session continues on the fallback engine the user picked (Parvaz or Shahpar).
+     * Not being signed in never falls back: the user chose Rubah and must sign in first.
+     */
+    private suspend fun connectFoxyEngine(token: Long, settings: AdvancedSettingsData) {
+        coroutineContext.ensureActive()
+        if (token != generation.get()) throw CancellationException("stale connect generation")
+        activeEngine = EngineMode.FOXY_FIREFOX
+        foxyHealthFailures = 0
+        FoxyStatusStore.reset()
+        runCatching { torCoordinator.stop() }
+        runCatching { powCoordinator.stop() }
+        runCatching { directCoordinator.stop() }
+        runCatching { nativeTunEngine.stop() }
+        runCatching { proxyCore.stop() }
+        try {
+            foxyCoordinator.connect(settings, sessionTunBackend) { candidateSettings ->
+                establishTun(candidateSettings)
+            }
+        } catch (cancelled: CancellationException) {
+            runCatching { foxyCoordinator.stop() }
+            throw cancelled
+        } catch (error: Throwable) {
+            runCatching { foxyCoordinator.stop() }
+            val fallback = FoxyEngineStore.get(this).snapshot().fallback
+            val reason = FoxyErrors.persian(error)
+            AppLogRepository.warning(LogSource.SERVICE, "[FOXY] connect failed: ${error.message.orEmpty()}", error)
+            if (error is FoxyNotSignedInException || fallback == FoxyFallback.NONE) throw error
+            coroutineContext.ensureActive()
+            if (token != generation.get()) throw CancellationException("stale connect generation")
+            val target = if (fallback == FoxyFallback.SHAHPAR) "شاهپر" else "پرواز"
+            FoxyStatusStore.update { it.copy(phase = FoxyPhase.FALLBACK, detail = "$reason ← رفتن به موتور $target") }
+            AppLogRepository.warning(LogSource.SERVICE, "[FOXY] falling back to ${fallback.id}")
+            withContext(Dispatchers.Main) {
+                runCatching {
+                    android.widget.Toast.makeText(
+                        this@UacVpnService,
+                        "روباه وصل نشد؛ با موتور $target ادامه می‌دهم",
+                        android.widget.Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+            when (fallback) {
+                FoxyFallback.SHAHPAR -> connectPowEngine(token, settings)
+                else -> {
+                    activeEngine = EngineMode.XRAY_CF
+                    profileStore.clearActive()
+                    connectXray(token, settings, profileStore.selectedProfile())
+                }
+            }
+            return
+        }
+        coroutineContext.ensureActive()
+        if (token != generation.get()) throw CancellationException("stale connect generation")
+        resourcesActive = true
+        if (!ConnectionStateStore.markConnected()) {
+            cleanupRoute()
+            resourcesActive = false
+            return
+        }
+        runCatching { updateNotification(connected = true) }
+            .onFailure { Log.w(TAG, "connected notification update failed", it) }
+        if (!isProxyMode()) startStatsMonitor(token)
+        startHealthMonitor(token)
+        onSessionUp()
+        AppLogRepository.success(LogSource.SERVICE, "[FOXY] Firefox VPN active ${foxyCoordinator.activeLabel()}")
+    }
+
     private fun requestApplyDirectExit() {
         if (!activeEngine.isDirect || disconnectInFlight) return
         val state = ConnectionStateStore.state.value
@@ -1592,6 +1691,15 @@ class UacVpnService : VpnService() {
             generation.get(), "Direct exit selection changed",
             penalizeCandidate = false, replacePendingConnect = true,
         )
+    }
+
+    /** Rubah country changed while connected: reconnect through the normal recovery path. */
+    private fun requestApplyFoxyCountry() {
+        if (!activeEngine.isFoxy || !resourcesActive) return
+        if (ConnectionStateStore.state.value != ConnectionState.CONNECTED) return
+        val country = FoxyEngineStore.get(this).snapshot().countryCode.ifBlank { "fastest" }
+        AppLogRepository.info(LogSource.SERVICE, "[FOXY] reconnecting for country=$country")
+        scheduleRuntimeRecovery(generation.get(), "Rubah country changed", penalizeCandidate = false)
     }
 
     private fun requestApplyPowExit() {
@@ -1664,7 +1772,7 @@ class UacVpnService : VpnService() {
         settings: AdvancedSettingsData,
     ): android.os.ParcelFileDescriptor? {
         val routing = AppRoutingPreferences.snapshot(this)
-        val torRelay = activeEngine.isTor
+        val torRelay = activeEngine.isTor || activeEngine.isFoxy
         val dns = if (torRelay) TorTunRelayConfig.MAP_DNS else settings.nativeDns
         AppLogRepository.debug(
             LogSource.TUN,
@@ -1771,6 +1879,7 @@ class UacVpnService : VpnService() {
         runCatching { torCoordinator.stop() }
         runCatching { directCoordinator.stop() }
         runCatching { powCoordinator.stop() }
+        runCatching { foxyCoordinator.stop() }
         nativeTunEngine.stop()
         proxyCore.stop()
         TunPacketFilter.stop()
@@ -1793,6 +1902,7 @@ class UacVpnService : VpnService() {
         activeEngine.isTor -> torCoordinator.tunStats()
         activeEngine.isPow -> powCoordinator.tunStats()
         activeEngine.isDirect -> directCoordinator.tunStats()
+        activeEngine.isFoxy -> foxyCoordinator.tunStats()
         else -> nativeTunEngine.stats()
     }
 
@@ -1801,6 +1911,7 @@ class UacVpnService : VpnService() {
         activeEngine.isTor -> TunStats.ZERO
         activeEngine.isPow -> TunStats.ZERO
         activeEngine.isDirect -> TunStats.ZERO
+        activeEngine.isFoxy -> TunStats.ZERO
         else -> nativeTunEngine.probeStats()
     }
 
@@ -1810,6 +1921,7 @@ class UacVpnService : VpnService() {
         activeEngine.isPow && isProxyMode() -> powCoordinator.isOuterRunning() && powCoordinator.isRunning()
         activeEngine.isPow -> powCoordinator.isRunning()
         activeEngine.isDirect -> directCoordinator.isRunning()
+        activeEngine.isFoxy -> foxyCoordinator.isRunning()
         isProxyMode() -> proxyCore.isRunning()
         else -> nativeTunEngine.isRunning()
     }
@@ -2041,7 +2153,7 @@ class UacVpnService : VpnService() {
 
     private fun maybePrewarm(reason: String) {
         if (!resourcesActive || ConnectionStateStore.state.value != ConnectionState.CONNECTED) return
-        if (activeEngine.isTor || activeEngine.isPow || activeEngine.isDirect) return
+        if (activeEngine.isTor || activeEngine.isPow || activeEngine.isDirect || activeEngine.isFoxy) return
         if (!advancedSettingsStore.snapshot().prewarm) return
         val now = android.os.SystemClock.elapsedRealtime()
         if (now - lastPrewarmAt < PREWARM_MIN_GAP_MS) return
@@ -2084,6 +2196,25 @@ class UacVpnService : VpnService() {
                         return@launch
                     }
                     nextDelayMs = TOR_WATCHDOG_INTERVAL_MS
+                    continue
+                }
+                if (activeEngine.isFoxy) {
+                    if (!activeCoreRunning()) {
+                        AppLogRepository.warning(LogSource.SERVICE, "[FOXY] core or relay exited; recovering")
+                        scheduleRuntimeRecovery(token, "Firefox VPN core exited", penalizeCandidate = false)
+                        return@launch
+                    }
+                    nextDelayMs = FOXY_WATCHDOG_INTERVAL_MS
+                    if (VpnPauseStore.isPaused() || !isScreenInteractive()) continue
+                    val ok = runCatching { foxyCoordinator.healthy() }.getOrDefault(false)
+                    if (token != generation.get() || !resourcesActive) return@launch
+                    foxyHealthFailures = if (ok) 0 else foxyHealthFailures + 1
+                    if (foxyHealthFailures >= 3) {
+                        AppLogRepository.warning(LogSource.SERVICE, "[FOXY] 3 failed checks through Mozilla's edge; reconnecting")
+                        scheduleRuntimeRecovery(token, "Firefox VPN watchdog failed", penalizeCandidate = false)
+                        return@launch
+                    }
+                    if (!ok) nextDelayMs = 15_000L
                     continue
                 }
                 if (activeEngine.isPow) {
@@ -2264,6 +2395,7 @@ class UacVpnService : VpnService() {
                         activeEngine.isTor -> connectTorEngine(recoveryToken, settings)
                         activeEngine.isPow -> connectPowEngine(recoveryToken, settings)
                         activeEngine.isDirect -> connectDirectEngine(recoveryToken, settings)
+                        activeEngine.isFoxy -> connectFoxyEngine(recoveryToken, settings)
                         else -> connectXray(recoveryToken, settings, profile, recovering = true)
                     }
                 }
@@ -2379,6 +2511,8 @@ class UacVpnService : VpnService() {
     private fun lanShareUpstreamPort(): Int = when {
         activeEngine.isPow -> powCoordinator.socksPort().takeIf { it > 0 } ?: PowCoreConfig.SOCKS_PORT
         activeEngine.isDirect -> directCoordinator.socksPort()
+        activeEngine.isFoxy -> foxyCoordinator.socksPort().takeIf { it > 0 }
+            ?: FoxyEngineStore.get(this).snapshot().socksPort
         activeEngine.isTor -> torCoordinator.publicSocksPort().takeIf { it > 0 }
             ?: torEngineStore.snapshot().socksPort
         else -> advancedSettingsStore.snapshot().socksPort
@@ -2410,6 +2544,8 @@ class UacVpnService : VpnService() {
             lifecycleMutex.withLock {
                 if (resourcesActive) {
                     startLanShare()
+                    // Rubah bakes "Iranian sites direct" into sing-box routing: rebuild if it changed.
+                    if (activeEngine.isFoxy) runCatching { foxyCoordinator.reload(VpnPauseStore.isPaused()) }
                 } else {
                     LanShareProxy.stop()
                 }
@@ -2675,8 +2811,10 @@ class UacVpnService : VpnService() {
     }
 
     private fun engineShortName(): String {
-        val engine = engineModeStore.snapshot()
+        // After a Rubah fallback the running engine differs from the selected one.
+        val engine = if (resourcesActive) activeEngine else engineModeStore.snapshot()
         return when {
+            engine.isFoxy -> "Rubah"
             engine.isTor -> "Sayeh"
             engine.isPow -> "Shahpar"
             engine.isDirect -> "Tir"
@@ -2714,6 +2852,7 @@ class UacVpnService : VpnService() {
             }
             engine.isTor -> torEngineStore.snapshot().exitCountryCode
             engine.isDirect -> ""
+            engine.isFoxy -> FoxyStatusStore.status.value.countryCode.takeIf { it.length == 2 }.orEmpty()
             else -> profileStore.selectedProfile().country.countryCode
         }
         return CountryMetadata.resolve(raw, null).takeIf { it.isKnown }
@@ -2769,6 +2908,7 @@ class UacVpnService : VpnService() {
         const val ACTION_SWITCH_PROFILE = "com.uacspoofer.mobile.SWITCH_PROFILE"
         const val ACTION_APPLY_TOR_EXIT = "com.uacspoofer.mobile.APPLY_TOR_EXIT"
         const val ACTION_APPLY_POW_EXIT = "com.uacspoofer.mobile.APPLY_POW_EXIT"
+        const val ACTION_APPLY_FOXY_COUNTRY = "com.uacspoofer.mobile.APPLY_FOXY_COUNTRY"
         const val ACTION_APPLY_DIRECT_EXIT = "com.uacspoofer.mobile.APPLY_DIRECT_EXIT"
         const val ACTION_APPLY_NETWORK_GUARD = "com.uacspoofer.mobile.APPLY_NETWORK_GUARD"
         const val ACTION_APPLY_DIRECT_WHITELIST = "com.uacspoofer.mobile.APPLY_DIRECT_WHITELIST"
@@ -2795,6 +2935,7 @@ class UacVpnService : VpnService() {
         private const val ADAPTIVE_STABILITY_WINDOW_MS = 60_000L
         private const val ADAPTIVE_PROBE_WARMUP_MS = 800L
         private const val TOR_WATCHDOG_INTERVAL_MS = 60_000L
+        private const val FOXY_WATCHDOG_INTERVAL_MS = 60_000L
         private const val POST_CONNECT_HEALTH_DELAY_MS = 8_000L
         private const val PREWARM_MIN_GAP_MS = 60_000L
         private const val PREWARM_TIMEOUT_MS = 4_000

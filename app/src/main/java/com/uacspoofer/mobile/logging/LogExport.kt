@@ -54,6 +54,7 @@ object LogExport {
         EngineMode.TOR_WEBTUNNEL -> "Engine 2 - Tor WebTunnel"
         EngineMode.UAC_POW -> "Engine 3 - PoW"
         EngineMode.UAC_DIRECT -> "Engine 4 - Direct"
+        EngineMode.FOXY_FIREFOX -> "Engine 5 - Firefox VPN"
     }
 
     /** Writes the text to the place the user picked in the system file dialog. */

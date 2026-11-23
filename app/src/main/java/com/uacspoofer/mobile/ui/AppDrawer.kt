@@ -132,7 +132,7 @@ internal fun DrawerDestination.visibleFor(mode: EngineMode): Boolean = when (thi
 
 private fun drawerItemsFor(mode: EngineMode): List<DrawerItem> = buildList {
     add(DrawerItem(DrawerDestination.HOME, "Home", Icons.Outlined.Home))
-    if (mode.isTor || mode.isPow) {
+    if (mode.isTor || mode.isPow || mode.isFoxy) {
         add(DrawerItem(DrawerDestination.CONFIGS, "Select country", Icons.Outlined.Public))
     } else if (mode.isDirect) {
         // Engine 4 has no configs or countries: it dials sites directly.
@@ -149,6 +149,8 @@ private fun drawerItemsFor(mode: EngineMode): List<DrawerItem> = buildList {
         mode.isPow -> add(DrawerItem(DrawerDestination.POW_SETTINGS, "Shahpar settings", Icons.Outlined.Tune))
         mode.isTor -> add(DrawerItem(DrawerDestination.TOR_SETTINGS, "Sayeh settings", Icons.Outlined.Tune))
         mode.isDirect -> add(DrawerItem(DrawerDestination.DIRECT_SETTINGS, "Tir settings", Icons.Outlined.Tune))
+        // Rubah keeps account, servers and protocol on its own country page (CONFIGS).
+        mode.isFoxy -> Unit
         else -> add(DrawerItem(DrawerDestination.ADVANCED_SETTINGS, "Parvaz settings", Icons.Outlined.Tune))
     }
     // Support is always the last item, for every engine.
@@ -384,6 +386,7 @@ private fun DrawerHeader(compact: Boolean, engineMode: EngineMode) {
                 engineMode.isTor -> "SIMORGH SAYEH BRIDGE"
                 engineMode.isPow -> "Shahpar"
                 engineMode.isDirect -> "Tir"
+                engineMode.isFoxy -> "Rubah"
                 else -> "Simorgh"
             },
             color = DrawerText,
@@ -503,7 +506,7 @@ private fun drawerLabel(item: DrawerItem, engineMode: EngineMode): String = home
     item.label,
     when (item.destination) {
                         DrawerDestination.HOME -> "خانه"
-                        DrawerDestination.CONFIGS -> if (engineMode.isTor || engineMode.isPow) "انتخاب کشور" else "کانفیگ‌ها"
+                        DrawerDestination.CONFIGS -> if (engineMode.isTor || engineMode.isPow || engineMode.isFoxy) "انتخاب کشور" else "کانفیگ‌ها"
                         DrawerDestination.SNI_MAKER -> "ساخت کانفیگ"
                         DrawerDestination.ROUTE_SPEED_TEST -> "تست سرعت مسیر"
                         DrawerDestination.LIVE_LOGS -> "لاگ‌ها"

@@ -26,6 +26,20 @@ jobs:
         with:
           python-version: '3.12'
       - run: ln -sf "$(which python3)" /usr/local/bin/python || true
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+          cache: false
+      - name: Build Foxy sing-box (Vauth/sing-box v1.0.0-masque)
+        run: |
+          git clone --depth 1 --branch v1.0.0-masque https://github.com/Vauth/sing-box.git "$RUNNER_TEMP/foxybox"
+          cd "$RUNNER_TEMP/foxybox"
+          test "$(git rev-parse HEAD)" = 9be46c8d5c37b5832a879ec78b2c8d75f3286c20
+          GOOS=android GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -buildvcs=false \
+            -tags with_quic,with_utls -ldflags "-s -w -buildid=" \
+            -o "$GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/libfoxybox.so" ./cmd/sing-box
+          ls -l "$GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/libfoxybox.so"
+          sha256sum "$GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a/libfoxybox.so"
       - uses: gradle/actions/setup-gradle@v4
       - name: Prepare release signing
         env:
