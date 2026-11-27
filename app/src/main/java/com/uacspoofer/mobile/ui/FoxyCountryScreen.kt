@@ -79,7 +79,7 @@ import com.uacspoofer.mobile.engine.foxy.FoxyAccount
 import com.uacspoofer.mobile.engine.foxy.FoxyEngineStore
 import com.uacspoofer.mobile.engine.foxy.FoxyErrors
 import com.uacspoofer.mobile.engine.foxy.FoxyStatusStore
-import com.uacspoofer.mobile.engine.foxy.FoxyPing
+import com.uacspoofer.mobile.engine.foxy.FoxyCountryPinger
 import com.uacspoofer.mobile.engine.foxy.FoxyPingResult
 import com.uacspoofer.mobile.engine.foxy.RECOMMENDED_COUNTRY_CODE
 import com.uacspoofer.mobile.engine.foxy.ServerListClient
@@ -100,8 +100,6 @@ private sealed interface FoxyCountryPing {
     data class Done(val best: FoxyPingResult?, val reachable: Int, val tested: Int) : FoxyCountryPing
 }
 
-/** Servers measured per country: enough to find a reachable edge without flooding the network. */
-private const val PINGS_PER_COUNTRY = 2
 
 @Composable
 internal fun FoxyCountryScreen(onMenuClick: () -> Unit) {
@@ -145,23 +143,17 @@ internal fun FoxyCountryScreen(onMenuClick: () -> Unit) {
         snackbarJob = scope.launch { snackbar.showSnackbar(message) }
     }
 
-    fun measureAll(list: List<VpnCountry>) {
+    fun measureAll(list: List<VpnCountry>, force: Boolean = false) {
         pingJob?.cancel()
         pingJob = scope.launch {
-            val targets = list.associate { country ->
-                country.code to ServerListClient.candidatesForCountry(list, country.code)
-                    .shuffled()
-                    .take(PINGS_PER_COUNTRY)
-            }
-            targets.keys.forEach { pings[it] = FoxyCountryPing.Measuring }
-            val ranked = FoxyPing.rank(targets.values.flatten(), parallel = 8)
-            targets.forEach { (code, candidates) ->
-                val results = ranked.filter { (candidate, _) -> candidate.countryCode == code }.map { it.second }
-                pings[code] = FoxyCountryPing.Done(
-                    best = results.filter { it.reachable }.minByOrNull { it.tlsMs ?: Int.MAX_VALUE },
-                    reachable = results.count { it.reachable },
-                    tested = candidates.size,
-                )
+            val netKey = runCatching {
+                com.uacspoofer.mobile.engine.pow.PowNetworkScoreboard.networkKey(context)
+            }.getOrDefault("unknown")
+            list.forEach { pings[it.code] = FoxyCountryPing.Measuring }
+            // Every country is measured (servers spread over its cities, second round if the
+            // first found nothing) and each row is published as soon as its own result lands.
+            FoxyCountryPinger.measureAll(list, netKey, force = force) { result ->
+                pings[result.code] = FoxyCountryPing.Done(result.best, result.reachable, result.tested)
             }
         }
     }
@@ -354,7 +346,7 @@ internal fun FoxyCountryScreen(onMenuClick: () -> Unit) {
                             )
                             RemoteIconButton(
                                 onClick = {
-                                    if (countries.isEmpty()) load(forceNetwork = true) else measureAll(countries)
+                                    if (countries.isEmpty()) load(forceNetwork = true) else measureAll(countries, force = true)
                                 },
                                 modifier = Modifier
                                     .size(48.dp)
@@ -574,7 +566,7 @@ private fun FoxyCountryRow(
 private fun FoxyPingChip(ping: FoxyCountryPing?) {
     val shape = RoundedCornerShape(10.dp)
     val done = ping as? FoxyCountryPing.Done
-    val ms = done?.best?.tlsMs
+    val ms = done?.best?.pingMs
     val color = when {
         ms == null -> UacColors.TextSecondary
         ms < 250 -> UacColors.ConnectedGreen

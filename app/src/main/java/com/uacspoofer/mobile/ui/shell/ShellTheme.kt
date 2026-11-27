@@ -35,6 +35,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -89,36 +90,52 @@ data class SxColors(
     val compact: Boolean,
     val button: ButtonStyle,
     val anim: AnimLevel,
+    /** Bottom bar and other chrome. */
+    val nav: Color = surface,
+    /** Map sea / land / borders (ExpressVPN-style flat map). */
+    val mapSea: Color = Color(0xFFD3E3E0),
+    val mapLand: Color = Color.White,
+    val mapBorder: Color = Color(0xFFD3E3E0),
+    val hero: HeroStyle = HeroStyle.ARCS,
+    /** User switch for map motion; the power mode still caps it (see [mapMotionFor]). */
+    val mapAnim: Boolean = true,
 )
 
-val LocalSx = staticCompositionLocalOf { darkColors(ShellPrefs(), false, AnimLevel.FULL) }
+val LocalSx = staticCompositionLocalOf { lightColors(ShellPrefs(), AnimLevel.FULL) }
+
+/** The approved accent ("Express green"); dark theme uses its bright variant. */
+private const val EXPRESS_GREEN = 0xFF1F7A5CL
+private val EXPRESS_GREEN_DARK = Color(0xFF4CD4A0)
 
 private fun darkColors(p: ShellPrefs, amoled: Boolean, anim: AnimLevel): SxColors {
-    val accent = Color(p.accent)
-    val surfaceOpaque = if (amoled) Color(0xFF101318) else Color(0xFF18233A)
-    val bgTop = if (amoled) Color(0xFF000000) else Color(0xFF132036)
-    val bgBottom = if (amoled) Color(0xFF000000) else Color(0xFF0A111E)
-    // Fake glass: more glass = more of the background shows through (no blur at runtime).
-    val surface = lerp(surfaceOpaque, bgBottom, 0.45f * p.glass).copy(alpha = 1f - 0.18f * p.glass)
+    val accent = if (p.accent == EXPRESS_GREEN) EXPRESS_GREEN_DARK else lerp(Color(p.accent), Color.White, 0.18f)
+    val bg = if (amoled) Color(0xFF000000) else Color(0xFF14232B)
     return SxColors(
-        light = false, bgTop = bgTop, bgBottom = bgBottom, surface = surface,
-        surfaceHigh = if (amoled) Color(0xFF1A1E25) else Color(0xFF22304A),
-        stroke = Color.White.copy(alpha = 0.07f), text = Color(0xFFEAF0F7), textDim = Color(0xFF93A1B5),
-        textFaint = Color(0xFF5F6D82), accent = accent, onAccent = Color(0xFF06231C),
-        good = Color(0xFF3ED6A0), warn = Color(0xFFF2B35A), bad = Color(0xFFF06A6A),
+        light = false, bgTop = bg, bgBottom = bg,
+        surface = if (amoled) Color(0xFF111A1F) else Color(0xFF1C2F38),
+        surfaceHigh = if (amoled) Color(0xFF1B262C) else Color(0xFF24414C),
+        stroke = if (amoled) Color(0xFF22303A) else Color(0xFF28404B),
+        text = Color(0xFFEEF3F4), textDim = Color(0xFF9AABB2), textFaint = Color(0xFF6E828B),
+        accent = accent, onAccent = Color(0xFF0E2A20),
+        good = accent, warn = Color(0xFFE0A100), bad = Color(0xFFE57373),
         radius = p.radius.dp, textScale = p.textScale, compact = p.compact, button = p.button, anim = anim,
+        nav = if (amoled) Color(0xFF0B1013) else Color(0xFF182A33),
+        mapSea = if (amoled) Color(0xFF0B1013) else Color(0xFF18303A),
+        mapLand = if (amoled) Color(0xFF2A3338) else Color(0xFF454B4E),
+        mapBorder = if (amoled) Color(0xFF0B1013) else Color(0xFF18303A),
     )
 }
 
 private fun lightColors(p: ShellPrefs, anim: AnimLevel): SxColors {
     val accent = Color(p.accent)
     return SxColors(
-        light = true, bgTop = Color(0xFFF3F6FA), bgBottom = Color(0xFFE6ECF3),
-        surface = Color.White.copy(alpha = 1f - 0.15f * p.glass), surfaceHigh = Color(0xFFEFF3F8),
-        stroke = Color(0xFF0B1A2E).copy(alpha = 0.08f), text = Color(0xFF0E1A2B), textDim = Color(0xFF5B6B80),
-        textFaint = Color(0xFF94A2B5), accent = lerp(accent, Color.Black, 0.12f), onAccent = Color.White,
-        good = Color(0xFF16A37C), warn = Color(0xFFC98516), bad = Color(0xFFD94848),
+        light = true, bgTop = Color(0xFFF4F3EE), bgBottom = Color(0xFFF4F3EE),
+        surface = Color.White, surfaceHigh = Color(0xFFEFEEE8),
+        stroke = Color(0xFFE6E5DF), text = Color(0xFF1B2B2A), textDim = Color(0xFF6B7775),
+        textFaint = Color(0xFF9AA19F), accent = accent, onAccent = Color.White,
+        good = Color(0xFF1F7A5C), warn = Color(0xFFC98A00), bad = Color(0xFFC0504D),
         radius = p.radius.dp, textScale = p.textScale, compact = p.compact, button = p.button, anim = anim,
+        nav = Color.White,
     )
 }
 
@@ -126,19 +143,17 @@ private fun monoColors(p: ShellPrefs, anim: AnimLevel): SxColors = darkColors(p.
     accent = Color(0xFFEDEDED), onAccent = Color.Black, good = Color(0xFFDADADA), warn = Color(0xFFBDBDBD), bad = Color(0xFF9E9E9E),
 )
 
-/** Theme for the 1.0.2 shell: palette, RTL, fixed animation budget from settings and power mode. */
+/** Theme for the shell: ExpressVPN-style palette (light default), RTL, animation budget from settings + power mode. */
 @Composable
 fun SimorghShellTheme(content: @Composable () -> Unit) {
     val context = LocalContext.current
     val store = remember(context) { ShellPrefsStore.get(context) }
     val prefs by store.prefsFlow.collectAsStateWithLifecycle()
-    val power by remember(context) { PowerMode.flow(context) }.collectAsStateWithLifecycle(PowerMode.current(context))
+    val powerFlow = remember(context) { PowerMode.flow(context) }
+    val initialPower = remember(context) { PowerMode.current(context) }
+    val power by powerFlow.collectAsStateWithLifecycle(initialPower)
     val systemDark = isSystemInDarkTheme()
-    val anim = when {
-        power == PowerMode.ULTRA -> AnimLevel.OFF
-        power == PowerMode.SAVER && prefs.anim == AnimLevel.FULL -> AnimLevel.REDUCED
-        else -> prefs.anim
-    }
+    val anim = animLevelFor(power, prefs.anim)
     val colors = remember(prefs, systemDark, anim) {
         when (prefs.skin) {
             Skin.SYSTEM -> if (systemDark) darkColors(prefs, false, anim) else lightColors(prefs, anim)
@@ -146,9 +161,20 @@ fun SimorghShellTheme(content: @Composable () -> Unit) {
             Skin.DARK -> darkColors(prefs, false, anim)
             Skin.AMOLED -> darkColors(prefs, true, anim)
             Skin.MONO -> monoColors(prefs, anim)
-        }
+        }.copy(hero = prefs.hero, mapAnim = prefs.mapAnim)
     }
     CompositionLocalProvider(LocalSx provides colors, LocalLayoutDirection provides LayoutDirection.Rtl, content = content)
+}
+
+/**
+ * The three power modes drive every animation in the shell:
+ * BALANCED = what the user picked, SAVER = at most REDUCED (one-shot motion, nothing infinite),
+ * ULTRA = OFF (static).
+ */
+fun animLevelFor(power: PowerMode, chosen: AnimLevel): AnimLevel = when {
+    power == PowerMode.ULTRA -> AnimLevel.OFF
+    power == PowerMode.SAVER && chosen == AnimLevel.FULL -> AnimLevel.REDUCED
+    else -> chosen
 }
 
 fun SxColors.pingColor(ms: Long?): Color = when {
@@ -168,13 +194,15 @@ fun SText(
     maxLines: Int = 1,
     align: TextAlign? = null,
     ltr: Boolean = false,
+    /** Latin digits (IP addresses): Vazirmatn FD always draws Persian digits. */
+    latin: Boolean = false,
 ) {
     val sx = LocalSx.current
     Text(
         text = text,
         modifier = modifier,
         style = TextStyle(
-            fontFamily = Vazir,
+            fontFamily = if (latin) FontFamily.Default else Vazir,
             fontSize = size * sx.textScale,
             fontWeight = weight,
             color = color,
@@ -186,17 +214,13 @@ fun SText(
     )
 }
 
-fun Modifier.sxCard(sx: SxColors, shape: Shape = RoundedCornerShape(sx.radius + 6.dp), highlight: Boolean = false): Modifier =
+fun Modifier.sxCard(sx: SxColors, shape: Shape = RoundedCornerShape(sx.radius), highlight: Boolean = false): Modifier =
     this
-        .clip(shape)
-        .background(
-            if (highlight) {
-                Brush.linearGradient(listOf(sx.accent.copy(alpha = 0.16f), sx.surface))
-            } else {
-                Brush.verticalGradient(listOf(sx.surface, sx.surface))
-            },
-        )
-        .border(1.dp, if (highlight) sx.accent.copy(alpha = 0.35f) else sx.stroke, shape)
+        .then(if (sx.light) Modifier.shadow(1.5.dp, shape, clip = true, ambientColor = CARD_SHADOW, spotColor = CARD_SHADOW) else Modifier.clip(shape))
+        .background(if (highlight) lerp(sx.surface, sx.accent, 0.08f) else sx.surface)
+        .then(if (highlight) Modifier.border(1.dp, sx.accent.copy(alpha = 0.45f), shape) else Modifier)
+
+private val CARD_SHADOW = Color(0x33000000)
 
 @Composable
 fun Modifier.sxClick(onClick: () -> Unit): Modifier {

@@ -1705,6 +1705,11 @@ class ProfileLatencyTester(context: Context) {
     }
 
     private fun fetchSmall(url: String, proxy: Proxy, timeoutMs: Int): String {
+        // Through the tunnel with remote DNS: HttpURLConnection would resolve the host locally
+        // (outside the tunnel, since the app excludes itself from its own VPN).
+        com.uacspoofer.mobile.vpn.TunnelHttp.socksOf(proxy)?.let { socks ->
+            return com.uacspoofer.mobile.vpn.TunnelHttp.get(url, socks.hostString, socks.port, timeoutMs, MAX_COUNTRY_BYTES, "Simorgh/SNI-Maker")
+        }
         val connection = URL(url).openConnection(proxy) as HttpsURLConnection
         return try {
             connection.connectTimeout = timeoutMs

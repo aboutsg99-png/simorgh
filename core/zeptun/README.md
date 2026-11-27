@@ -1,6 +1,6 @@
 # Zeptun on Android
 
-UAC uses Zeptun 1.1.3 at commit `32f5dde141b125ec0aea732b1c55937e7993b189`. The [upstream Android guide](https://github.com/Noisemux/zeptun/wiki/Android) describes the mobile preset and C ABI. UAC packages the engine statically linked into `libzeptun-jni.so` for each ABI in `app/src/main/jniLibs`. The [MIT notice](../../third_party/zeptun-LICENSE.txt) covers the engine and the adapted Android JNI bridge.
+Simorgh uses Zeptun 1.1.3 at commit `32f5dde141b125ec0aea732b1c55937e7993b189`. The [upstream Android guide](https://github.com/Noisemux/zeptun/wiki/Android) describes the mobile preset and C ABI. Simorgh packages the engine statically linked into `libzeptun-jni.so` for each ABI in `app/src/main/jniLibs`. The [MIT notice](../../third_party/zeptun-LICENSE.txt) covers the engine and the adapted Android JNI bridge.
 
 From the repository root on Windows, run this with official Zig 0.17.1 and Android NDK 26.3.11579264.
 
@@ -23,7 +23,7 @@ The saved setting is read when an explicit VPN connection starts. Recovery and r
 | --- | --- | --- |
 | Xray | Existing built-in TUN | Private loopback SOCKS with the same routing, DNS rules and statistics |
 | Tor | HEV | Tor split-routing SOCKS, with local fake DNS and TCP upstream |
-| UAC PoW with Psiphon | HEV | PoW split-routing SOCKS, with local fake DNS and TCP upstream |
-| UAC PoW with WARP only | HEV | Aether SOCKS, with local fake DNS and standard SOCKS5 UDP association |
+| PoW engine with Psiphon | HEV | PoW split-routing SOCKS, with local fake DNS and TCP upstream |
+| PoW engine with WARP only | HEV | Aether SOCKS, with local fake DNS and standard SOCKS5 UDP association |
 
-Tor and the PoW Psiphon relay expose SOCKS CONNECT only. Zeptun serves their synthetic DNS locally and rejects other UDP within the tunnel. SOCKS-only mode starts no TUN backend. UAC Direct uses its existing TUN path.
+Tor and the PoW Psiphon relay expose SOCKS CONNECT only. Zeptun serves their synthetic DNS locally and rejects other UDP within the tunnel. SOCKS-only mode starts no TUN backend. Direct uses its existing TUN path.

@@ -5,6 +5,7 @@ import com.uacspoofer.mobile.core.ConnectionState
 import com.uacspoofer.mobile.core.ConnectionStateStore
 import com.uacspoofer.mobile.core.VpnController
 import com.uacspoofer.mobile.engine.EngineMode
+import com.uacspoofer.mobile.engine.wireguard.WgTunnelStore
 import com.uacspoofer.mobile.engine.EngineModeStore
 import com.uacspoofer.mobile.engine.foxy.FoxyEngineStore
 import com.uacspoofer.mobile.engine.pow.PowEngineStore
@@ -46,6 +47,8 @@ object SelectionActions {
                     store.save(store.snapshot().copy(exitCountryCode = code))
                 }
                 EngineMode.UAC_DIRECT -> if (code.isNotEmpty()) VpnController.selectDirectExit(app, code)
+                // The store throws when its Keystore-backed file is unreadable; never crash a tap on that.
+                EngineMode.WIREGUARD -> runCatching { WgTunnelStore.get(app).select(target.profileId.takeIf { it.isNotEmpty() }) }
             }
         }
         LocationState.bumpProfiles()
@@ -73,6 +76,7 @@ object SelectionActions {
                     EngineMode.TOR_WEBTUNNEL -> VpnController.applyTorExit(app)
                     EngineMode.UAC_POW -> VpnController.applyPowExit(app)
                     EngineMode.UAC_DIRECT -> Unit // selectDirectExit already applied it live
+                    EngineMode.WIREGUARD -> restartWith(app, target.engine, connect)
                 }
             } else {
                 restartWith(app, target.engine, connect)

@@ -326,23 +326,28 @@ internal fun MainScreen(
 
     LaunchedEffect(settingsRevision) {
         if (settingsRevision == 0) return@LaunchedEffect
-        homeConfigsLibrary = profileStore.snapshot()
+        homeConfigsLibrary = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { profileStore.snapshot() }
     }
 
     LaunchedEffect(selectedDestination, state, settingsRevision) {
-        val nextProfile = if (state == ConnectionState.CONNECTED) {
-            profileStore.activeProfile() ?: profileStore.selectedProfile()
-        } else {
-            profileStore.selectedProfile()
+        // Profile JSON parsing and settings reads stay off the main thread (opening a page
+        // from the shell used to hitch here).
+        val (nextProfile, endpoint) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val p = if (state == ConnectionState.CONNECTED) {
+                profileStore.activeProfile() ?: profileStore.selectedProfile()
+            } else {
+                profileStore.selectedProfile()
+            }
+            val settings = advancedSettings.snapshot().validated()
+            val e = if (state == ConnectionState.CONNECTED) {
+                profileStore.activeEndpoint()
+            } else {
+                null
+            } ?: ProfileEndpoint(settings.primaryAddress, settings.primaryPort)
+            p to e
         }
         homeProfile = nextProfile
         homeCountry = nextProfile.country
-        val settings = advancedSettings.snapshot().validated()
-        val endpoint = if (state == ConnectionState.CONNECTED) {
-            profileStore.activeEndpoint()
-        } else {
-            null
-        } ?: ProfileEndpoint(settings.primaryAddress, settings.primaryPort)
         homeCountry = countryRepository.resolve(nextProfile, endpoint).country
     }
 
@@ -472,6 +477,22 @@ internal fun MainScreen(
                     onBack = { selectedDestination = directSettingsBack },
                     unlocked = directOptionsUnlocked,
                     onUnlock = { directOptionsUnlocked = true },
+                )
+                DrawerDestination.WIREGUARD -> com.uacspoofer.mobile.ui.engines.WireGuardScreen(
+                    onBack = { selectedDestination = DrawerDestination.HOME },
+                    onProtonSignIn = { selectedDestination = DrawerDestination.PROTON_SIGN_IN },
+                )
+                DrawerDestination.PROTON_SIGN_IN -> com.uacspoofer.mobile.ui.engines.ProtonSignInScreen(
+                    onBack = { selectedDestination = DrawerDestination.WIREGUARD },
+                )
+                DrawerDestination.FLUX_SETTINGS -> com.uacspoofer.mobile.ui.engines.FluxSettingsScreen(
+                    onBack = { selectedDestination = DrawerDestination.HOME },
+                )
+                DrawerDestination.CLEAN_IP_SCANNER -> com.uacspoofer.mobile.ui.engines.CleanIpScreen(
+                    onBack = { selectedDestination = DrawerDestination.HOME },
+                )
+                DrawerDestination.GAME_DNS -> com.uacspoofer.mobile.ui.engines.GameDnsScreen(
+                    onBack = { selectedDestination = DrawerDestination.HOME },
                 )
                 DrawerDestination.SUPPORT -> SupportScreen(
                     onMenuClick = openDrawer,
@@ -1086,7 +1107,7 @@ private fun SelectedProfileRow(
             PowRegions.name(powSettings.exitCountryCode, nameLocale)
         }
         engineMode.isDirect -> when {
-            !directSettings.wireGuardOverDirect -> homeText("Tir", "تیر")
+            !directSettings.wireGuardOverDirect -> homeText("Direct", "Direct")
             directSettings.exitCountryCode.isEmpty() -> homeText("Automatic", "خودکار")
             else -> PowRegions.name(directSettings.exitCountryCode, nameLocale)
         }

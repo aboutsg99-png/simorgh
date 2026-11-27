@@ -77,6 +77,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -279,26 +280,26 @@ private fun PowSettingsPanel() {
     val exits = listOf(
         PowMenuChoice(
             "chain",
-            homeLtr("NUR → Abr"),
+            homeLtr("WARP → Psiphon"),
             homeText(
-                "Traffic goes through NUR, then exits via Abr. Works best with WireGuard or MASQUE HTTP/2.",
-                "ترافیک از نور وارد ابر می‌شود. با WireGuard یا MASQUE HTTP/2 بهتر کار می‌کند.",
+                "Traffic goes through WARP, then exits via Psiphon. Works best with WireGuard or MASQUE HTTP/2.",
+                "ترافیک از WARP وارد Psiphon می‌شود. با WireGuard یا MASQUE HTTP/2 بهتر کار می‌کند.",
             ),
         ),
         PowMenuChoice(
             "warp",
-            homeText("NUR only", "فقط نور"),
+            homeText("WARP only", "فقط WARP"),
             homeText(
-                "Traffic exits straight through Nur. Abr stays off.",
-                "ترافیک مستقیم از نور خارج می‌شود و ابر خاموش می‌ماند.",
+                "Traffic exits straight through WARP. Psiphon stays off.",
+                "ترافیک مستقیم از WARP خارج می‌شود و Psiphon خاموش می‌ماند.",
             ),
         ),
         PowMenuChoice(
             "psiphon",
-            homeText("Abr only", "فقط ابر"),
+            homeText("Psiphon only", "فقط Psiphon"),
             homeText(
-                "Abr connects on its own; NUR is never started. Lighter on battery, harder through DPI.",
-                "ابر بدون نور وصل می‌شود. مصرف باتری کمتر، ولی عبور از DPI سخت‌تر.",
+                "Psiphon connects on its own; WARP is never started. Lighter on battery, harder through DPI.",
+                "Psiphon بدون WARP وصل می‌شود. مصرف باتری کمتر، ولی عبور از DPI سخت‌تر.",
             ),
         ),
     )
@@ -355,7 +356,7 @@ private fun PowSettingsPanel() {
         Column(verticalArrangement = Arrangement.spacedBy(PowGap)) {
             if (!AetherNative.available) {
                 Text(
-                    homeText(AetherNative.unavailableReason, "این گوشی از شاهپر پشتیبانی نمی‌کند."),
+                    homeText(AetherNative.unavailableReason, "این گوشی از Psiphon/WARP پشتیبانی نمی‌کند."),
                     color = UacColors.ErrorRed,
                     fontSize = 13.sp,
                     lineHeight = 19.sp,
@@ -576,7 +577,7 @@ private fun PowAdvancedCard(
                 icon = Icons.Outlined.Bolt,
                 title = homeText("Speed test when connecting", "تست سرعت هنگام اتصال"),
                 subtitle = homeText(
-                    "MASQUE H2 + Abr only. Uses data and adds connection time. Applies next connection.",
+                    "MASQUE H2 + Psiphon only. Uses data and adds connection time. Applies next connection.",
                     "فقط MASQUE H2 + ابر؛ مصرف اینترنت و زمان اتصال بیشتر. از اتصال بعدی.",
                 ),
                 checked = settings.startupSpeedTest,
@@ -698,13 +699,18 @@ private fun PowStatusCard(
             latinDigits(homeText("Clean IPs ", "آی‌پی تمیز ") + homeLtr(list))
         }
     }
-    val pulse = rememberInfiniteTransition(label = "powDot")
-    val dotAlpha by pulse.animateFloat(
-        initialValue = 1f,
-        targetValue = if (connecting) 0.25f else 1f,
-        animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
-        label = "powDotAlpha",
-    )
+    // Pulse only while connecting, and read in the draw phase (graphicsLayer) so it never
+    // recomposes the panel; idle it used to tick every frame for nothing.
+    val dotAlphaState: androidx.compose.runtime.State<Float> = if (connecting) {
+        rememberInfiniteTransition(label = "powDot").animateFloat(
+            initialValue = 1f,
+            targetValue = 0.25f,
+            animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
+            label = "powDotAlpha",
+        )
+    } else {
+        remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -724,7 +730,7 @@ private fun PowStatusCard(
             Box(
                 modifier = Modifier
                     .size(10.dp)
-                    .alpha(dotAlpha)
+                    .graphicsLayer { alpha = dotAlphaState.value }
                     .background(tone, CircleShape),
             )
         }
@@ -774,12 +780,12 @@ private fun recipeHint(recipe: String): String = when (recipe) {
         "WireGuard روی IPv4 و IPv6.",
     )
     PowCoreConfig.RECIPE_WOW_V6 -> homeText(
-        "NUR inside NUR, IPv6 only.",
-        "نور داخل نور، فقط روی IPv6.",
+        "WARP inside WARP, IPv6 only.",
+        "WARP داخل WARP، فقط روی IPv6.",
     )
     PowCoreConfig.RECIPE_WOW_ANY -> homeText(
-        "NUR inside NUR, over IPv4 and IPv6.",
-        "نور داخل نور، روی IPv4 و IPv6.",
+        "WARP inside WARP, over IPv4 and IPv6.",
+        "WARP داخل WARP، روی IPv4 و IPv6.",
     )
     PowCoreConfig.RECIPE_MASQUE_H2 -> homeText(
         "Tries saved clean addresses first, then scans HTTP/2 and saves any new one.",
@@ -794,7 +800,7 @@ private fun recipeHint(recipe: String): String = when (recipe) {
         "MASQUE روی HTTP/3 و IPv4.",
     )
     PowCoreConfig.RECIPE_MASQUE_H3_EXPERIMENTAL -> homeText(
-        "Requires native QUIC and verifies traffic before starting Abr.",
+        "Requires native QUIC and verifies traffic before starting Psiphon.",
         "به QUIC نیاز دارد و پیش از شروع ابر، عبور ترافیک را بررسی می‌کند.",
     )
     PowCoreConfig.RECIPE_MASQUE_H3_OVER_H2 -> homeText(
@@ -1539,7 +1545,7 @@ private fun PowKeyCard(
     var fetching by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val fetchingLabel = homeText("Getting the key…", "در حال گرفتن کلید…")
-    val busyLabel = homeText("Disconnect Shahpar first.", "اول اتصال شاهپر را قطع کن.")
+    val busyLabel = homeText("Disconnect Psiphon/WARP first.", "اول اتصال Psiphon/WARP را قطع کن.")
     val fetchedLabel = homeText("Key saved.", "کلید ذخیره شد.")
     val failedLabel = homeText("Key request failed.", "گرفتن کلید ناموفق بود.")
     val certAskingLabel = homeText("Getting a certificate…", "در حال گرفتن گواهی…")
@@ -1549,7 +1555,7 @@ private fun PowKeyCard(
     val successNotes = setOf(fetchingLabel, fetchedLabel, certAskingLabel, certSavedLabel)
     val status = when {
         identity.enrolled && identity.masqueCertificate -> homeText("Saved", "ذخیره شده")
-        identity.enrolled -> homeText("NUR key only", "فقط کلید نور")
+        identity.enrolled -> homeText("WARP key only", "فقط کلید WARP")
         identity.present -> homeText("Incomplete", "ناقص")
         else -> homeText("Not saved yet", "هنوز گرفته نشده")
     }

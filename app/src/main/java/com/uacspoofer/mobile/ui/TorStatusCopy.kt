@@ -9,9 +9,9 @@ internal object TorStatusCopy {
 
     fun bootstrapHint(percent: Int, persian: Boolean): String =
         if (persian) {
-            "راه‌اندازی سایه $percent٪"
+            "راه‌اندازی Tor $percent%"
         } else {
-            "Sayeh bootstrap $percent%"
+            "Tor bootstrap $percent%"
         }
 
     fun connectingHint(
@@ -35,9 +35,9 @@ internal object TorStatusCopy {
         val trimmed = detail.trim()
         if (trimmed.isNotEmpty()) return trimmed
         return when {
-            phase == TorPhase.BRIDGING -> "Applying Pol bridge"
-            showRouteProgress -> "Starting Sayeh / Pol"
-            else -> "Starting Sayeh / Pol"
+            phase == TorPhase.BRIDGING -> "Applying WebTunnel bridge"
+            showRouteProgress -> "Starting Tor / WebTunnel"
+            else -> "Starting Tor / WebTunnel"
         }
     }
 
@@ -47,29 +47,31 @@ internal object TorStatusCopy {
             val current = match.groupValues[1]
             val total = match.groupValues[2]
             val count = match.groupValues[3]
-            return "دسته ${homeLtr("$current/$total")} · ${homeLtr(count)} بریج پل"
+            return "دسته ${homeLtr("$current/$total")} · ${homeLtr(count)} بریج WebTunnel"
         }
         return when {
+            trimmed.startsWith("Checking WebTunnel") ->
+                "در حال بررسی بریج‌های WebTunnel"
             trimmed.startsWith("Checking Pol") ->
-                "در حال بررسی بریج‌های پل"
+                "در حال بررسی بریج‌های WebTunnel"
             trimmed.startsWith("Applying Pol") ->
-                "در حال اعمال بریج پل"
-            trimmed.startsWith("Starting Sayeh") ->
-                "در حال شروع سایه"
+                "در حال اعمال بریج WebTunnel"
+            trimmed.startsWith("Starting Tor") ->
+                "در حال شروع Tor"
             trimmed.startsWith("Routing device") ->
-                "در حال عبور ترافیک دستگاه از سایه"
-            trimmed.startsWith("Bootstrapping Sayeh") ->
+                "در حال عبور ترافیک دستگاه از Tor"
+            trimmed.startsWith("Bootstrapping Tor") ->
                 bootstrapHint(percentFromDetail(trimmed), persian = true)
-            trimmed.startsWith("Sayeh circuit is ready") || trimmed.startsWith("Sayeh / Pol ready") ->
-                "سایه آماده است"
+            trimmed.startsWith("Tor circuit is ready") || trimmed.startsWith("Tor / Pol ready") ->
+                "Tor آماده است"
             trimmed.startsWith("Reconnecting for ExitNodes") ->
                 "اتصال مجدد برای کشور خروجی"
-            trimmed.startsWith("Sayeh connect failed") || trimmed.startsWith("Sayeh reconnect failed") ->
-                "اتصال سایه برقرار نشد"
+            trimmed.startsWith("Tor connect failed") || trimmed.startsWith("Tor reconnect failed") ->
+                "اتصال Tor برقرار نشد"
             trimmed.isNotEmpty() -> homeLtr(trimmed)
-            phase == TorPhase.BRIDGING -> "در حال اعمال بریج پل"
-            showRouteProgress -> "در حال شروع سایه"
-            else -> "در حال شروع سایه"
+            phase == TorPhase.BRIDGING -> "در حال اعمال بریج WebTunnel"
+            showRouteProgress -> "در حال شروع Tor"
+            else -> "در حال شروع Tor"
         }
     }
 

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Pets
+import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.text.font.FontWeight
@@ -94,6 +95,7 @@ internal fun EngineMode.identityAccent(): Color = when (this) {
     EngineMode.UAC_POW -> Color(0xFF6FF6D0)
     EngineMode.UAC_DIRECT -> Color(0xFFFFC46B)
     EngineMode.FOXY_FIREFOX -> Color(0xFFFF9A5C)
+    EngineMode.WIREGUARD -> Color(0xFFE85D63)
 }
 
 internal fun EngineMode.toHomeRemoteSlot(): HomeRemoteSlot = when (this) {
@@ -102,15 +104,17 @@ internal fun EngineMode.toHomeRemoteSlot(): HomeRemoteSlot = when (this) {
     EngineMode.UAC_POW -> HomeRemoteSlot.EnginePow
     EngineMode.UAC_DIRECT -> HomeRemoteSlot.EngineDirect
     EngineMode.FOXY_FIREFOX -> HomeRemoteSlot.Other
+    EngineMode.WIREGUARD -> HomeRemoteSlot.Other
 }
 
 @Composable
 internal fun EngineMode.switchContentDescription(): String = when (this) {
-    EngineMode.XRAY_CF -> homeText("Parvaz engine", "موتور پرواز")
-    EngineMode.TOR_WEBTUNNEL -> homeText("Sayeh engine", "موتور سایه")
-    EngineMode.UAC_POW -> homeText("Shahpar engine", "موتور شاهپر")
-    EngineMode.UAC_DIRECT -> homeText("Tir engine", "موتور تیر")
-    EngineMode.FOXY_FIREFOX -> homeText("Rubah engine", "موتور روباه")
+    EngineMode.XRAY_CF -> homeText("Xray engine", "موتور Xray")
+    EngineMode.TOR_WEBTUNNEL -> homeText("Tor engine", "موتور Tor")
+    EngineMode.UAC_POW -> homeText("Psiphon/WARP engine", "موتور Psiphon/WARP")
+    EngineMode.UAC_DIRECT -> homeText("Direct engine", "موتور Direct")
+    EngineMode.FOXY_FIREFOX -> homeText("Firefox VPN engine", "موتور Firefox VPN")
+    EngineMode.WIREGUARD -> homeText("WireGuard engine", "موتور WireGuard")
 }
 
 private fun EngineMode.identityIcon(): ImageVector = when (this) {
@@ -119,6 +123,7 @@ private fun EngineMode.identityIcon(): ImageVector = when (this) {
     EngineMode.UAC_POW -> PowHexIcon
     EngineMode.UAC_DIRECT -> DirectArrowIcon
     EngineMode.FOXY_FIREFOX -> Icons.Outlined.Pets
+    EngineMode.WIREGUARD -> Icons.Outlined.VpnKey
 }
 
 private fun EngineMode.shortName(): String = info.latin

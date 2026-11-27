@@ -101,7 +101,7 @@ internal fun SupportScreen(
                 item {
                     SupportLinkCard(
                         title = homeText("Telegram Support", "پشتیبانی ${supportLtr("Telegram")}"),
-                        address = "@theluciferee",
+                        address = "@theacproject",
                         icon = Icons.Outlined.Send,
                         accent = TelegramBlue,
                         onClick = { openExternalLink(context, TELEGRAM_SUPPORT_URL) },
@@ -490,4 +490,4 @@ internal fun openExternalLink(context: Context, url: String) {
     }
 }
 
-private const val TELEGRAM_SUPPORT_URL = "https://t.me/theluciferee"
+private const val TELEGRAM_SUPPORT_URL = "https://t.me/theacproject"

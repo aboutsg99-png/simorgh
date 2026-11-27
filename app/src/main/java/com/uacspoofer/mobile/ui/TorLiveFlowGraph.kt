@@ -111,7 +111,7 @@ private fun TorFlowStageId.hint(): String = when (this) {
     TorFlowStageId.PT -> homeText("Pluggable transport process", "پروسه انتقال پل")
     TorFlowStageId.HANDSHAKE -> homeText("10–15%", "۱۰ تا ۱۵٪")
     TorFlowStageId.DIRECTORY -> homeText("15–75%", "۱۵ تا ۷۵٪")
-    TorFlowStageId.BOOTSTRAP -> homeText("Sayeh bootstrap progress", "پیشرفت راه‌اندازی سایه")
+    TorFlowStageId.BOOTSTRAP -> homeText("Tor bootstrap progress", "پیشرفت راه‌اندازی Tor")
     TorFlowStageId.CIRCUITS -> homeText("Guards, conflux, real bridge", "گاردها، کانفلاکس، پل واقعی")
     TorFlowStageId.TUN -> homeText("MTU, buffers, UDP", "MTU، بافر، UDP")
     TorFlowStageId.THROUGHPUT -> homeText("Small download, screen on", "دانلود کوچک وقتی صفحه روشن است")
@@ -159,7 +159,7 @@ internal fun TorLiveFlowButton(accent: Color, onClick: () -> Unit) {
                 color = UacColors.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, fontFamily = homeLocalizedFont(),
             )
             Text(
-                homeText("Every step of the Sayeh connect, live", "همه مراحل اتصال سایه، به‌صورت زنده"),
+                homeText("Every step of the Tor connect, live", "همه مراحل اتصال Tor، به‌صورت زنده"),
                 color = UacColors.TextSecondary, fontSize = 11.5.sp, fontFamily = homeLocalizedFont(),
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
@@ -174,7 +174,7 @@ internal fun TorLiveFlowButton(accent: Color, onClick: () -> Unit) {
 internal fun TorLiveFlowDialog(visible: Boolean, onDismissRequest: () -> Unit) {
     AnimatedHomeMetricDialog(
         visible = visible,
-        title = homeText("Live path · Sayeh", "مسیر زنده · سایه"),
+        title = homeText("Live path · Tor", "مسیر زنده · Tor"),
         subtitle = homeText("The connect process, step by step", "فرایند اتصال، مرحله به مرحله"),
         icon = Icons.Outlined.Route,
         onDismissRequest = onDismissRequest,
@@ -214,7 +214,7 @@ private fun TorLiveFlowContent() {
         Spacer(Modifier.height(12.dp))
         if (snap.startedAt == 0L) {
             Text(
-                homeText("Connect with Sayeh to see the live flow.", "برای دیدن مسیر زنده، با سایه وصل شو."),
+                homeText("Connect with Tor to see the live flow.", "برای دیدن مسیر زنده، با Tor وصل شو."),
                 color = UacColors.TextSecondary, fontSize = 12.5.sp, fontFamily = homeLocalizedFont(),
                 modifier = Modifier.padding(8.dp),
             )

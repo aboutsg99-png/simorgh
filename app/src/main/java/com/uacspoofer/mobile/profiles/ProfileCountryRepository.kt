@@ -6,9 +6,7 @@ import com.uacspoofer.mobile.logging.AppLogRepository
 import com.uacspoofer.mobile.logging.LogSource
 import java.net.Inet4Address
 import java.net.InetAddress
-import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
-import javax.net.ssl.HttpsURLConnection
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -47,6 +45,7 @@ data class ProfileCountryResolution(
 
 
 class ProfileCountryRepository private constructor(context: Context) {
+    private val appContext = context.applicationContext
     private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private val endpointLocks = ConcurrentHashMap<String, Mutex>()
     private val stateLock = Any()
@@ -64,8 +63,9 @@ class ProfileCountryRepository private constructor(context: Context) {
                 currentResolution(stateKey)?.let { return@withLock it }
 
                 if (profile.country.isKnown) {
-                    val resolvedIp = runCatchingNonCancellation { resolvePublicIp(cleanEndpoint.host) }.getOrNull()
-                    currentCoroutineContext().ensureActive()
+                    // The country is already known: no DNS query at all (it used to resolve the
+                    // host anyway, outside the tunnel, only to show the IP).
+                    val resolvedIp = cleanEndpoint.host.takeIf { isIpLiteral(it) }
                     return@withLock publish(
                         stateKey,
                         ProfileCountryResolution(
@@ -83,7 +83,7 @@ class ProfileCountryRepository private constructor(context: Context) {
                     return@withLock unknown(stateKey, profile, cleanEndpoint, null, "no-host")
                 }
 
-                val resolvedIp = runCatchingNonCancellation { resolvePublicIp(cleanEndpoint.host) }
+                val resolvedIp = runCatchingNonCancellation { resolvePrivately(cleanEndpoint.host) }
                     .getOrElse { error ->
                         currentCoroutineContext().ensureActive()
                         return@withLock unknown(
@@ -96,7 +96,13 @@ class ProfileCountryRepository private constructor(context: Context) {
                     }
                 if (resolvedIp == null) {
                     currentCoroutineContext().ensureActive()
-                    return@withLock unknown(stateKey, profile, cleanEndpoint, null, "no-public-ip")
+                    val reason = if (isIpLiteral(cleanEndpoint.host) || tunnelSocks() != null || directDnsAllowed()) {
+                        "no-public-ip"
+                    } else {
+                        // Retried (negative cache is 60 s) once a tunnel is up or the user opts in.
+                        "dns-deferred-until-tunnel"
+                    }
+                    return@withLock unknown(stateKey, profile, cleanEndpoint, null, reason)
                 }
 
                 currentCoroutineContext().ensureActive()
@@ -156,32 +162,61 @@ class ProfileCountryRepository private constructor(context: Context) {
         return resolution.takeIf { System.currentTimeMillis() - it.resolvedAtMs < NEGATIVE_CACHE_TTL_MS }
     }
 
-    private fun resolvePublicIp(host: String): String? {
+    /**
+     * Resolves a config's server host without leaking it:
+     * - IP literal: no DNS;
+     * - tunnel up: DNS-over-HTTPS sent through the tunnel's SOCKS port (remote DNS);
+     * - no tunnel: the system resolver only if the user opted in ([setDirectDnsAllowed]).
+     * Before, every config host was resolved with the system resolver while Simorgh is
+     * excluded from its own VPN, i.e. always straight to the ISP's DNS.
+     */
+    private fun resolvePrivately(host: String): String? {
+        if (isIpLiteral(host)) {
+            return runCatching { InetAddress.getByName(host.removeSurrounding("[", "]")) }.getOrNull()
+                ?.takeIf { it.isPublicAddress() }?.hostAddress
+        }
+        tunnelSocks()?.let { (socksHost, socksPort) ->
+            for (url in DOH_JSON_ENDPOINTS) {
+                val ip = runCatching {
+                    val body = com.uacspoofer.mobile.vpn.TunnelHttp.get(
+                        url + java.net.URLEncoder.encode(host, "UTF-8"), socksHost, socksPort, LOOKUP_TIMEOUT_MS,
+                    )
+                    com.uacspoofer.mobile.engine.foxy.FoxyPing.parseDohA(body)
+                }.getOrNull()
+                val address = ip?.let { runCatching { InetAddress.getByName(it) }.getOrNull() }
+                if (address != null && address.isPublicAddress()) return address.hostAddress
+            }
+            return null
+        }
+        if (!directDnsAllowed()) return null
         val addresses = InetAddress.getAllByName(host)
         val address = addresses.firstOrNull { it is Inet4Address && it.isPublicAddress() }
             ?: addresses.firstOrNull { it.isPublicAddress() }
         return address?.hostAddress
     }
 
+    /** Local SOCKS of the running tunnel, or null when no tunnel is connected. */
+    private fun tunnelSocks(): Pair<String, Int>? {
+        if (com.uacspoofer.mobile.core.ConnectionStateStore.state.value != com.uacspoofer.mobile.core.ConnectionState.CONNECTED) return null
+        return runCatching { com.uacspoofer.mobile.vpn.LivePing.socksEndpoint(appContext) }.getOrNull()
+            ?.takeIf { it.second in 1..65_535 }
+    }
+
+    fun directDnsAllowed(): Boolean = prefs.getBoolean(KEY_DIRECT_DNS, false)
+
+    /** Opt-in: resolve config hosts with the phone's own DNS when no tunnel is up. */
+    fun setDirectDnsAllowed(allowed: Boolean) {
+        prefs.edit().putBoolean(KEY_DIRECT_DNS, allowed).apply()
+    }
+
     private fun InetAddress.isPublicAddress(): Boolean =
         !isAnyLocalAddress && !isLoopbackAddress && !isLinkLocalAddress && !isSiteLocalAddress && !isMulticastAddress
 
+    /** Offline: the IPFire database bundled for Tor. No request leaves the phone. */
     private fun lookupCountry(ip: String): CountryMetadata {
-        val connection = (URL("https://ipwho.is/$ip?fields=success,country_code,country,message").openConnection() as HttpsURLConnection)
-        return try {
-            connection.requestMethod = "GET"
-            connection.connectTimeout = LOOKUP_TIMEOUT_MS
-            connection.readTimeout = LOOKUP_TIMEOUT_MS
-            connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("User-Agent", "Simorgh/0.1")
-            val code = connection.responseCode
-            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-            val payload = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            if (code !in 200..299) error("HTTP $code")
-            parseCountryLookup(payload)
-        } finally {
-            connection.disconnect()
-        }
+        val address = InetAddress.getByName(ip)
+        val code = OfflineGeoIp.get(appContext).lookup(address) ?: return CountryMetadata.UNKNOWN
+        return CountryMetadata.resolve(code, null)
     }
 
     private fun readCache(ip: String): CountryMetadata? {
@@ -261,6 +296,17 @@ class ProfileCountryRepository private constructor(context: Context) {
         private const val LOOKUP_TIMEOUT_MS = 4_500
         private const val CACHE_TTL_MS = 30L * 24L * 60L * 60L * 1_000L
         private const val NEGATIVE_CACHE_TTL_MS = 60_000L
+        private const val KEY_DIRECT_DNS = "direct_dns_opt_in"
+        private val DOH_JSON_ENDPOINTS = listOf(
+            "https://dns.google/resolve?type=A&name=",
+            "https://cloudflare-dns.com/dns-query?type=A&name=",
+        )
+        private val IPV4_LITERAL = Regex("^\\d{1,3}(\\.\\d{1,3}){3}$")
+
+        internal fun isIpLiteral(host: String): Boolean {
+            val h = host.trim().removeSurrounding("[", "]")
+            return IPV4_LITERAL.matches(h) || (h.contains(':') && h.all { it.isLetterOrDigit() || it == ':' || it == '.' })
+        }
 
         @Volatile private var instance: ProfileCountryRepository? = null
 

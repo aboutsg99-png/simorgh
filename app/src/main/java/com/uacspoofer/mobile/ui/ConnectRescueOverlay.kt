@@ -350,7 +350,7 @@ private fun RescueStepRow(snapshot: ConnectRescueSnapshot, accent: Color) {
 private fun rescueTitle(snapshot: ConnectRescueSnapshot): String = when (snapshot.phase) {
     ConnectRescuePhase.COLLECTING -> homeText("Collecting Cloudflare edges", "جمع‌آوری Edgeهای Cloudflare")
     ConnectRescuePhase.PREFLIGHT -> homeText("TCP / TLS preflight", "پیش‌آزمایش TCP و TLS")
-    ConnectRescuePhase.SCREENING -> homeText("Parvaz + HTTP / DNS screen", "غربال با پرواز و HTTP")
+    ConnectRescuePhase.SCREENING -> homeText("Xray + HTTP / DNS screen", "غربال با Xray و HTTP")
     ConnectRescuePhase.SELECTING -> homeText("Building a new IP list", "ساخت لیست جدید IP")
     ConnectRescuePhase.RETRYING -> homeText("Retrying connect", "تلاش دوباره برای اتصال")
     ConnectRescuePhase.SUCCEEDED -> homeText("A clean IP connected", "یک IP تمیز وصل شد")
@@ -369,8 +369,8 @@ private fun rescueDetail(snapshot: ConnectRescueSnapshot): String = when (snapsh
         "کدام IPها دست‌دهی واقعی TCP و TLS را قبول می‌کنند.",
     )
     ConnectRescuePhase.SCREENING -> homeText(
-        "Testing the same config through Parvaz, then HTTP and DNS.",
-        "همان کانفیگ با پرواز و بعد HTTP و DNS آزمایش می‌شود.",
+        "Testing the same config through Xray, then HTTP and DNS.",
+        "همان کانفیگ با Xray و بعد HTTP و DNS آزمایش می‌شود.",
     )
     ConnectRescuePhase.SELECTING -> homeText(
         "Keeping a short, subnet-diverse list of IPs that actually work.",

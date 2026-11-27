@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.SupportAgent
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,9 +32,9 @@ import com.uacspoofer.mobile.ui.DrawerDestination
 
 private val FAQ = listOf(
     "کدام موتور را انتخاب کنم؟" to "اگر مطمئن نیستی «خودکار» را روشن کن. سیمرغ موتورها را به ترتیبی که در صفحه‌ی موتورها چیده‌ای امتحان می‌کند و موتوری که روی هر شبکه وصل شده را برای دفعه‌ی بعد به خاطر می‌سپارد.",
-    "پرواز (Xray) چیست؟" to "با کانفیگ‌ها و لینک اشتراک خودت کار می‌کند. از سرورها ← + کانفیگ را از کلیپ‌بورد، فایل یا تصویر QR وارد کن.",
-    "روباه (فایرفاکس) چطور کار می‌کند؟" to "با حساب فایرفاکس خودت وارد می‌شوی (هیچ حساب مشترکی در برنامه نیست). بعد از ورود، کشورهای موزیلا با پینگ واقعی به فهرست پرسرعت‌ها اضافه می‌شوند.",
-    "سایه و شاهپر" to "سایه مسیر چندلایه‌ی Tor با پل‌های WebTunnel است و کشور خروجی را می‌شود انتخاب کرد. شاهپر زنجیره‌ی نور (WARP)، ابر (Psiphon) و پل است. پینگ این دو فقط بعد از اتصال قابل اندازه‌گیری واقعی است.",
+    "Xray چیست؟" to "با کانفیگ‌ها و لینک اشتراک خودت کار می‌کند (VLESS، VMess، Trojan، Reality). در «انتخاب مکان» دکمه‌ی + را بزن و کانفیگ را از کلیپ‌بورد، فایل یا تصویر QR وارد کن.",
+    "Firefox VPN چطور کار می‌کند؟" to "با حساب فایرفاکس خودت وارد می‌شوی (هیچ حساب مشترکی در برنامه نیست). بعد از ورود، کشورهای موزیلا با پینگ واقعی به فهرست پرسرعت‌ها اضافه می‌شوند.",
+    "Tor، WARP و Psiphon" to "Tor + WebTunnel مسیر چندلایه‌ی Tor از روی پل‌های WebTunnel است و کشور خروجی را می‌شود انتخاب کرد. Cloudflare WARP تونل WireGuard/MASQUE کلودفلر است و Psiphon شبکه‌ی مقاوم Psiphon؛ می‌شود Psiphon را از روی WARP هم اجرا کرد. پینگ این‌ها فقط بعد از اتصال قابل اندازه‌گیری واقعی است.",
     "پینگ‌ها واقعی‌اند؟" to "بله. هیچ عددی تخمینی نیست: کانفیگ‌ها با تست واقعی تأخیر، سرورهای موزیلا با اتصال TCP و دست‌دادن TLS، و اتصال فعلی با درخواست واقعی از داخل تونل اندازه‌گیری می‌شوند.",
     "کشور و IP روی نقشه از کجا می‌آید؟" to "بعد از اتصال، IP خروجی از داخل تونل با DB-IP (همان داده‌ی browserleaks) و Cloudflare بررسی می‌شود. اگر کشور خروجی واقعی با کشور انتخابی فرق داشته باشد، کشور واقعی نشان داده می‌شود.",
     "تست سرعت" to "بین‌الملل با سرورهای Ookla (نزدیک‌ترین سرور با پینگ واقعی) و داخلی با سرور شاتل انجام می‌شود. وقتی وصل هستی، سرعت از داخل تونل اندازه‌گیری می‌شود.",
@@ -43,6 +44,7 @@ private val FAQ = listOf(
 @Composable
 internal fun GuideTab(onOpenLegacy: (DrawerDestination) -> Unit, onOpenEngines: () -> Unit, contentPadding: PaddingValues) {
     val sx = LocalSx.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     var open by rememberSaveable { mutableIntStateOf(-1) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item(key = "t") { ScreenTitle("راهنما") }
@@ -64,7 +66,9 @@ internal fun GuideTab(onOpenLegacy: (DrawerDestination) -> Unit, onOpenEngines: 
             Column(Modifier.fillMaxWidth().sxCard(sx)) {
                 MenuRow(SubEngines.AUTO_ICON, "صفحه‌ی موتورها", "وضعیت، ترتیب و خودکار") { onOpenEngines() }
                 DividerLine()
-                MenuRow(Icons.Outlined.SupportAgent, "پشتیبانی", "ارتباط و گزارش مشکل") { onOpenLegacy(DrawerDestination.SUPPORT) }
+                MenuRow(Icons.Outlined.SupportAgent, "پشتیبانی در تلگرام", "کانال رسمی $SIMORGH_TELEGRAM_HANDLE") { openTelegramChannel(context) }
+                DividerLine()
+                MenuRow(Icons.Outlined.Info, "گزارش مشکل و به‌روزرسانی", "نسخه‌ی برنامه، لاگ و مجوزها") { onOpenLegacy(DrawerDestination.SUPPORT) }
             }
         }
     }

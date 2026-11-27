@@ -37,13 +37,14 @@ class AiCleanHopTest {
         assertTrue(withHop.contains("full:gemini.google.com"))
         // proxy must stay the first outbound so unmatched traffic keeps its default route
         assertTrue(withHop.indexOf("\"tag\":\"proxy\"") < withHop.indexOf("\"tag\":\"ai-out\""))
+        // native TUN: the catch-all covers both the SOCKS and the TUN inbound
         // every rule that existed before is still present and the AI rule precedes the catch-all
         assertTrue(withHop.contains("\"outboundTag\":\"dns-out\""))
         assertTrue(withHop.contains("\"inboundTag\":[\"dns-query\"],\"outboundTag\":\"proxy\""))
-        assertTrue(withHop.contains("\"inboundTag\":[\"socks-in\"],\"network\":\"tcp,udp\",\"outboundTag\":\"probe-proxy\""))
+        assertTrue(withHop.contains("\"inboundTag\":[\"socks-in\",\"tun-in\"],\"network\":\"tcp,udp\",\"outboundTag\":\"probe-proxy\""))
         assertTrue(
             withHop.indexOf("\"outboundTag\":\"ai-out\"") <
-                withHop.indexOf("\"inboundTag\":[\"socks-in\"],\"network\":\"tcp,udp\""),
+                withHop.indexOf("\"inboundTag\":[\"socks-in\",\"tun-in\"],\"network\":\"tcp,udp\",\"outboundTag\":\"probe-proxy\""),
         )
     }
 

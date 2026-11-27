@@ -237,7 +237,7 @@ internal fun SettingsScreen(
                     if (engineMode.isPow) {
                         SettingsNavRow(
                             icon = Icons.Outlined.Hub,
-                            title = homeText("Shahpar", "شاهپر"),
+                            title = homeText("Psiphon/WARP", "Psiphon/WARP"),
                             summary = homeText("Connection path and MASQUE", "مسیر اتصال و تنظیمات MASQUE"),
                             isPersian = isPersian,
                             showDivider = true,
@@ -247,7 +247,7 @@ internal fun SettingsScreen(
                     if (engineMode.isTor) {
                         SettingsNavRow(
                             icon = Icons.Outlined.Shield,
-                            title = homeText("Sayeh settings", "تنظیمات سایه"),
+                            title = homeText("Tor settings", "تنظیمات Tor"),
                             summary = homeText(
                                 "Bridges, exit location and connection options",
                                 "پل‌ها، موقعیت خروجی و گزینه‌های اتصال",
@@ -260,7 +260,7 @@ internal fun SettingsScreen(
                     if (engineMode.isDirect) {
                         SettingsNavRow(
                             icon = Icons.Outlined.Tune,
-                            title = homeText("Tir settings", "تنظیمات تیر"),
+                            title = homeText("Direct settings", "تنظیمات Direct"),
                             summary = homeText(
                                 "DNS and connection options for serverless mode",
                                 "تنظیمات DNS و اتصال در حالت بدون سرور",
@@ -273,7 +273,7 @@ internal fun SettingsScreen(
                     if (engineMode.isXray) {
                         SettingsNavRow(
                             icon = Icons.Outlined.Tune,
-                            title = homeText("Parvaz settings", "تنظیمات پرواز"),
+                            title = homeText("Xray settings", "تنظیمات Xray"),
                             summary = homeText(
                                 "DNS, TUN and transport options",
                                 "تنظیمات DNS، تونل و روش انتقال",

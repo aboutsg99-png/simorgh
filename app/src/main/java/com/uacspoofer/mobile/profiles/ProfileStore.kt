@@ -229,8 +229,19 @@ class ProfileStore(context: Context) {
         return if (host.isNotBlank() && port in 1..65_535) ProfileEndpoint(host, port) else null
     }
 
-    private fun readProfiles(): List<ProxyProfile> = runCatching {
-        val array = JSONArray(prefs.getString(KEY_PROFILES, "[]") ?: "[]")
+    private fun readProfiles(): List<ProxyProfile> {
+        val raw = prefs.getString(KEY_PROFILES, "[]") ?: "[]"
+        // Parsing every URI is expensive with large subscriptions, and snapshot() is called
+        // from many places (home, location state, settings). The stored JSON string only
+        // changes on write, so reuse the last parse while it is the same text.
+        parseCache?.let { (cachedRaw, cachedList) -> if (cachedRaw === raw || cachedRaw == raw) return cachedList }
+        val parsed = parseProfiles(raw)
+        parseCache = raw to parsed
+        return parsed
+    }
+
+    private fun parseProfiles(raw: String): List<ProxyProfile> = runCatching {
+        val array = JSONArray(raw)
         buildList {
             repeat(array.length()) { index ->
                 val item = array.optJSONObject(index) ?: return@repeat
@@ -303,6 +314,7 @@ class ProfileStore(context: Context) {
     companion object {
         private const val PREFS = "uac_proxy_profiles_v2"
         private const val KEY_PROFILES = "profiles"
+        @Volatile private var parseCache: Pair<String, List<ProxyProfile>>? = null
         private const val KEY_SELECTED = "selected"
         private const val KEY_ACTIVE = "active"
         private const val KEY_ACTIVE_HOST = "active_host"

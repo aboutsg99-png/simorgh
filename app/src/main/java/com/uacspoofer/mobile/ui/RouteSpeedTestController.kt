@@ -1048,7 +1048,7 @@ internal class RouteSpeedTestController private constructor(context: Context) {
                             it.copy(
                                 status = RouteSpeedStatus.STARTING,
                                 stageReached = stage,
-                                detail = "${stage.title}: starting a fresh Parvaz route",
+                                detail = "${stage.title}: starting a fresh Xray route",
                             )
                         }
                         try {
@@ -1120,7 +1120,7 @@ internal class RouteSpeedTestController private constructor(context: Context) {
                     RouteSpeedProbeStage.PROBING -> RouteSpeedStatus.TESTING
                 },
                 detail = when (probeStage) {
-                    RouteSpeedProbeStage.STARTING -> "${stage.title}: starting a fresh Parvaz route"
+                    RouteSpeedProbeStage.STARTING -> "${stage.title}: starting a fresh Xray route"
                     RouteSpeedProbeStage.PROBING -> if (stage == RouteTournamentStage.MTU_VALIDATION) {
                         "${stage.title}: validating native TUN, HTTP, DNS, upload and download"
                     } else {

@@ -37,6 +37,7 @@ data class AutoEngineSettings(
         val DEFAULT_ORDER = listOf(
             EngineMode.XRAY_CF,
             EngineMode.FOXY_FIREFOX,
+            EngineMode.WIREGUARD,
             EngineMode.TOR_WEBTUNNEL,
             EngineMode.UAC_POW,
             EngineMode.UAC_DIRECT,
@@ -76,8 +77,14 @@ class AutoEngineStore private constructor(context: Context) {
     private fun read(): AutoEngineSettings = runCatching {
         val order = prefs.getString(KEY_ORDER, null)?.split(',')?.mapNotNull(::modeOf)
             ?: AutoEngineSettings.DEFAULT_ORDER
-        val included = prefs.getString(KEY_INCLUDED, null)?.split(',')?.mapNotNull(::modeOf)?.toSet()
-            ?: AutoEngineSettings().included
+        val storedIncluded = prefs.getString(KEY_INCLUDED, null)?.split(',')?.mapNotNull(::modeOf)?.toSet()
+        // WireGuard arrived after the first Auto release: include it once for existing users
+        // (Auto skips it while no tunnel is added, so this changes nothing until one is).
+        val included = when {
+            storedIncluded == null -> AutoEngineSettings().included
+            !prefs.getBoolean(KEY_WG_MIGRATED, false) -> storedIncluded + EngineMode.WIREGUARD
+            else -> storedIncluded
+        }
         val results = buildMap {
             val json = JSONObject(prefs.getString(KEY_RESULTS, "{}") ?: "{}")
             json.keys().forEach { key ->
@@ -118,6 +125,7 @@ class AutoEngineStore private constructor(context: Context) {
             .putBoolean(KEY_RECONNECT, value.autoReconnect)
             .putString(KEY_RESULTS, results.toString())
             .putString(KEY_MEMORY, memory.toString())
+            .putBoolean(KEY_WG_MIGRATED, true)
             .apply()
     }
 
@@ -130,6 +138,7 @@ class AutoEngineStore private constructor(context: Context) {
         private const val KEY_RECONNECT = "auto_reconnect"
         private const val KEY_RESULTS = "results"
         private const val KEY_MEMORY = "memory"
+        private const val KEY_WG_MIGRATED = "wg_migrated"
         private const val MAX_NETWORKS = 24
 
         private fun modeOf(id: String): EngineMode? = EngineMode.entries.firstOrNull { it.id == id.trim() }

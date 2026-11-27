@@ -218,7 +218,7 @@ private fun PowLivePathContent(modifier: Modifier) {
             ),
         ),
         PathNode(
-            "warp", Icons.Outlined.Cloud, "Nur",
+            "warp", Icons.Outlined.Cloud, "WARP",
             if (warpUsed) "$recipe · $gateway" else homeText("Not used in this mode", "توی این حالت استفاده نمی‌شه"),
             ":${PowCoreConfig.CHAIN_SOCKS_PORT}",
             stateFor(warpUsed, 2),
@@ -232,7 +232,7 @@ private fun PowLivePathContent(modifier: Modifier) {
             ),
         ),
         PathNode(
-            "psiphon", Icons.Outlined.Shield, "Abr",
+            "psiphon", Icons.Outlined.Shield, "Psiphon",
             if (psiphonUsed) listOf(live.psiphonProtocol.ifBlank { "—" }, exitCountry).joinToString(" · ")
             else homeText("Not used in this mode", "توی این حالت استفاده نمی‌شه"),
             ":$psiphonPort",
@@ -240,7 +240,7 @@ private fun PowLivePathContent(modifier: Modifier) {
             listOf(
                 homeText("Protocol", "پروتکل") to live.psiphonProtocol.ifBlank { "—" },
                 homeText("Exit country", "کشور خروجی") to exitCountry,
-                homeText("Route", "مسیر") to if (mode == PowEngineSettings.EXIT_CHAIN) homeText("Through NUR", "از روی نور") else homeText("Tir", "تیر"),
+                homeText("Route", "مسیر") to if (mode == PowEngineSettings.EXIT_CHAIN) homeText("Through WARP", "از روی WARP") else homeText("Direct", "Direct"),
                 homeText("SOCKS port", "پورت SOCKS") to homeLtr("127.0.0.1:$psiphonPort"),
             ),
         ),

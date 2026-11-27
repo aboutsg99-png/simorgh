@@ -290,9 +290,9 @@ internal fun ConnectProgressOverlay(
             else -> if (data.bootstrapping) homeText("Setting up", "در حال راه‌اندازی") else homeText("Connecting", "در حال اتصال")
         }
         val engineName = when (engine) {
-            ConnectOverlayEngine.TOR -> "Sayeh"
-            ConnectOverlayEngine.POW -> "Shahpar"
-            ConnectOverlayEngine.DIRECT -> "Tir"
+            ConnectOverlayEngine.TOR -> "Tor"
+            ConnectOverlayEngine.POW -> "Psiphon/WARP"
+            ConnectOverlayEngine.DIRECT -> "Direct"
             ConnectOverlayEngine.GENERIC -> if (data.bootstrapping) "Auto" else ""
         }
         val detail = when {

@@ -7,7 +7,8 @@ import com.uacspoofer.mobile.core.ConnectionStateStore
 import com.uacspoofer.mobile.engine.EngineMode
 import com.uacspoofer.mobile.engine.foxy.FoxyAccount
 import com.uacspoofer.mobile.engine.foxy.FoxyAccountState
-import com.uacspoofer.mobile.engine.foxy.FoxyPing
+import com.uacspoofer.mobile.engine.foxy.FoxyCountryPinger
+import com.uacspoofer.mobile.engine.pow.PowNetworkScoreboard
 import com.uacspoofer.mobile.engine.foxy.ServerListClient
 import com.uacspoofer.mobile.engine.foxy.VpnCountry
 import com.uacspoofer.mobile.profiles.ProfileLatencyCache
@@ -76,6 +77,7 @@ object FastestRepository {
     val state: StateFlow<FastestState> = mutable.asStateFlow()
     private var job: Job? = null
     private var foxyCountries: List<VpnCountry> = emptyList()
+    private const val CONFIG_PARALLEL = 2
 
     fun foxyCountryList(): List<VpnCountry> = foxyCountries
 
@@ -150,7 +152,7 @@ object FastestRepository {
                 source = if (sub != null) RowSource.SUBSCRIPTION else RowSource.CONFIG,
                 countryCode = code,
                 title = p.name,
-                tag = if (sub != null) "${sub.name.ifBlank { "اشتراک" }} (پرواز)" else "کانفیگ شخصی (پرواز)",
+                tag = if (sub != null) "${sub.name.ifBlank { "اشتراک" }} · Xray" else "کانفیگ شخصی · Xray",
                 profileId = p.id,
                 pingMs = cache[p.id],
                 measuring = measuring,
@@ -164,14 +166,19 @@ object FastestRepository {
             if (foxyCountries.isEmpty() || (measuring && !client.hasFreshCache())) {
                 runCatching { client.fetchCountries() }.getOrNull()?.let { foxyCountries = it }
             }
+            val netKey = runCatching { PowNetworkScoreboard.networkKey(app) }.getOrDefault("unknown")
+            val cachedPings = FoxyCountryPinger.cached(netKey)
             foxyCountries.forEach { c ->
+                val cached = cachedPings[c.code]
                 out += FastRow(
                     key = "foxy:${c.code}",
                     engine = EngineMode.FOXY_FIREFOX,
                     source = RowSource.RUBAH,
                     countryCode = c.code.uppercase(Locale.ROOT).take(2),
                     title = c.code,
-                    tag = "موزیلا (روباه)",
+                    tag = "Firefox VPN · MASQUE",
+                    pingMs = cached?.pingMs?.toLong(),
+                    measuredAtMs = cached?.measuredAtMs ?: 0L,
                     measuring = measuring,
                 )
             }
@@ -183,40 +190,38 @@ object FastestRepository {
         val tester = ProfileLatencyTester(app)
         val cache = ProfileLatencyCache(app)
         val library = runCatching { ProfileStore(app).snapshot() }.getOrNull() ?: return
-        for (p in library.customProfiles) {
-            val ms = try {
-                tester.measure(p)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Throwable) {
-                null
-            }
-            if (ms != null) runCatching { cache.put(p.id, ms) }
-            publish("cfg:${p.id}", ms)
-        }
-    }
-
-    private suspend fun measureRubah(app: Context) {
-        if (!rubahSignedIn(app) || foxyCountries.isEmpty()) return
-        val countries = foxyCountries
-        val targets = countries.associate { c ->
-            c.code to ServerListClient.candidatesForCountry(countries, c.code).shuffled().take(2)
-        }
-        // Rank per country so rows land progressively instead of after the whole sweep.
-        val gate = kotlinx.coroutines.sync.Semaphore(4)
+        // Each measurement runs its own temporary Xray; two at a time halves the sweep on
+        // the usual 2-4 core phone without starving the UI (was strictly one by one).
+        val gate = kotlinx.coroutines.sync.Semaphore(CONFIG_PARALLEL)
         kotlinx.coroutines.coroutineScope {
-            targets.forEach { (code, candidates) ->
+            for (p in library.customProfiles) {
                 launch {
                     gate.acquire()
                     try {
-                        val best = if (candidates.isEmpty()) null else FoxyPing.rank(candidates, parallel = 2)
-                            .firstOrNull { it.second.reachable }?.second?.tlsMs?.toLong()
-                        publish("foxy:$code", best)
+                        val ms = try {
+                            tester.measure(p)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Throwable) {
+                            null
+                        }
+                        if (ms != null) runCatching { cache.put(p.id, ms) }
+                        publish("cfg:${p.id}", ms)
                     } finally {
                         gate.release()
                     }
                 }
             }
+        }
+    }
+
+    private suspend fun measureRubah(app: Context) {
+        if (!rubahSignedIn(app) || foxyCountries.isEmpty()) return
+        val netKey = runCatching { PowNetworkScoreboard.networkKey(app) }.getOrDefault("unknown")
+        // Every country, servers spread over its cities, global cap, rows land one by one.
+        // Refresh (pingAll) always re-measures; loadCached shows this network's fresh results.
+        FoxyCountryPinger.measureAll(foxyCountries, netKey, force = true) { result ->
+            publish("foxy:${result.code}", result.pingMs?.toLong())
         }
     }
 
@@ -228,11 +233,10 @@ object FastestRepository {
         val code = location.connectedCode
         val ms = ConnectionMetricsStore.metrics.value.latencyMs ?: return
         if (code.isEmpty()) return
-        val name = when {
-            engine.isTor -> "سایه"
-            engine.isPow -> "شاهپر"
-            else -> "تیر"
-        }
+        val name = com.uacspoofer.mobile.simorgh.engineDisplayName(
+            engine,
+            runCatching { com.uacspoofer.mobile.engine.pow.PowEngineStore.get(app).snapshot().exitMode }.getOrDefault(""),
+        )
         val row = FastRow(
             key = "live:${engine.id}", engine = engine, source = RowSource.LIVE, countryCode = code,
             title = code, tag = "$name · اتصال فعلی", pingMs = ms, measuredAtMs = System.currentTimeMillis(),

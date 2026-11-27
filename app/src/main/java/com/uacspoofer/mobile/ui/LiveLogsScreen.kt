@@ -103,7 +103,7 @@ internal fun LiveLogsScreen(onMenuClick: () -> Unit) {
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = "Real-time app, VPN service and Parvaz activity",
+                text = "Real-time app, VPN service and Xray activity",
                 color = UacColors.TextSecondary,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 3.dp),

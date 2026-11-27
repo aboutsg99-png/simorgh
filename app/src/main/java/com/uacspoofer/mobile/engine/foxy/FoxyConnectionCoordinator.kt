@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -87,30 +88,39 @@ internal class FoxyConnectionCoordinator(private val service: VpnService) {
         if (!account.hasStoredSession()) throw FoxyNotSignedInException()
         box.binary() ?: throw FoxyBinaryMissingException()
 
-        publish(FoxyPhase.PREPARING, "دریافت مجوز VPN از حساب فایرفاکس")
-        val pass = bounded(90_000L, "proxy pass") { mintPass(account) }
-
-        publish(FoxyPhase.PREPARING, "دریافت فهرست سرورهای موزیلا")
-        val countries = bounded(30_000L, "server list") { loadCountries() }
-        val candidates = candidatesFor(countries, prefs.countryCode)
-        if (candidates.isEmpty()) throw FoxyUnusableException("No Mozilla server for ${prefs.countryCode.ifBlank { "auto" }}")
-
-        publish(FoxyPhase.PINGING, "اندازه‌گیری پینگ واقعی سرورها")
-        val ranked = bounded(30_000L, "ping") { FoxyPing.rank(candidates.take(16)) }.filter { it.second.reachable }
-        if (ranked.isEmpty()) throw FoxyUnusableException("TLS handshake to every Mozilla edge server failed")
+        publish(FoxyPhase.PREPARING, "دریافت مجوز VPN و فهرست سرورهای موزیلا")
+        // The pass, the server list and the edge ping do not depend on each other's result
+        // beyond list -> ping, so they run concurrently instead of strictly one after another.
+        val (pass, ranked) = kotlinx.coroutines.coroutineScope {
+            val passJob = async { bounded(90_000L, "proxy pass") { mintPass(account) } }
+            val rankJob = async {
+                val countries = bounded(30_000L, "server list") { loadCountries() }
+                val candidates = candidatesFor(countries, prefs.countryCode)
+                if (candidates.isEmpty()) throw FoxyUnusableException("No Mozilla server for ${prefs.countryCode.ifBlank { "auto" }}")
+                publish(FoxyPhase.PINGING, "اندازه‌گیری پینگ واقعی سرورها")
+                bounded(30_000L, "ping") { FoxyPing.rank(candidates.take(16), parallel = 8) }
+            }
+            passJob.await() to rankJob.await()
+        }
+        // TLS-reachable edges first; edges that only answered TCP or QUIC stay as candidates
+        // because HTTP/3 (UDP) or uTLS can still work where a plain TLS handshake was reset.
+        val usable = ranked.filter { it.second.answered }
+        if (usable.isEmpty()) throw FoxyUnusableException("No Mozilla edge server answered (TCP, TLS or QUIC)")
 
         val port = if (proxyMode) settings.socksPort else prefs.socksPort
         val iranRuleSet = iranRuleSetIfEnabled()
         val versions = versionOrder(prefs)
         val tried = mutableListOf<FoxyPathResult>()
         var winner: Session? = null
-        servers@ for ((candidate, ping) in ranked.take(2)) {
+        servers@ for ((candidate, ping) in usable.take(2)) {
             val perServer = mutableListOf<Pair<Int, FoxyPathResult>>()
-            for (version in versions) {
+            // TCP is dead to this edge (only QUIC answered): HTTP/1.1 and HTTP/2 cannot work.
+            val serverVersions = if (ping.tcpMs == null) versions.filter { it == 3 }.ifEmpty { versions } else versions
+            for (version in serverVersions) {
                 coroutineContext.ensureActive()
                 publish(
                     FoxyPhase.TESTING,
-                    "آزمایش ${FoxyProtocol.labelFor(version)} روی ${candidate.countryName.ifBlank { candidate.countryCode }} (پینگ ${ping.tcpMs ?: "?"} ms)",
+                    "آزمایش ${FoxyProtocol.labelFor(version)} روی ${candidate.countryName.ifBlank { candidate.countryCode }} (پینگ ${ping.pingMs ?: "?"} ms)",
                     server = candidate.host,
                     countryCode = candidate.countryCode,
                 )
@@ -141,7 +151,7 @@ internal class FoxyConnectionCoordinator(private val service: VpnService) {
 
         if (!proxyMode) {
             publish(FoxyPhase.TESTING, "ساخت تونل دستگاه")
-            val mtu = settings.tunMtu.coerceIn(1280, 1500)
+            val mtu = TorTunRelayConfig.relayMtu()
             val descriptor = checkNotNull(establishTun(settings.copy(tunMtu = mtu))) {
                 "Android could not establish the VPN interface"
             }
@@ -225,6 +235,8 @@ internal class FoxyConnectionCoordinator(private val service: VpnService) {
 
     private suspend fun loadCountries(): List<VpnCountry> {
         val client = ServerListClient(app)
+        // A fresh (< 6 h) cached directory saves a full HTTPS round trip on every connect.
+        if (client.hasFreshCache()) client.loadCachedCountries().takeIf { it.isNotEmpty() }?.let { return it }
         return runCatching { client.fetchCountries() }.getOrElse { error ->
             if (error is CancellationException) throw error
             client.loadCachedCountries().ifEmpty { throw error }
@@ -236,7 +248,13 @@ internal class FoxyConnectionCoordinator(private val service: VpnService) {
         val recommended = ServerListClient.candidatesForCountry(countries, RECOMMENDED_COUNTRY_CODE)
         if (recommended.isNotEmpty()) return recommended.shuffled()
         // No "recommended" bucket: one server per country, so ping picks the nearest region.
-        return countries.mapNotNull { ServerListClient.candidatesForCountry(countries, it.code).randomOrNull() }
+        // Countries this network already measured go first, fastest first, so the 16 probed
+        // at connect are the nearest ones rather than the first 16 of the directory.
+        val netKey = runCatching { com.uacspoofer.mobile.engine.pow.PowNetworkScoreboard.networkKey(app) }.getOrDefault("unknown")
+        val known = FoxyCountryPinger.cached(netKey)
+        return countries
+            .sortedBy { known[it.code]?.pingMs ?: Int.MAX_VALUE }
+            .mapNotNull { ServerListClient.candidatesForCountry(countries, it.code).randomOrNull() }
     }
 
     private suspend fun mintPass(account: FoxyAccount): ProxyPass {

@@ -144,7 +144,7 @@ object FoxyErrors {
         return when {
             error == null -> "خطای ناشناخته"
             error is FoxyNotSignedInException -> "اول با حساب فایرفاکس خودت وارد شو."
-            error is FoxyBinaryMissingException -> "هسته‌ی روباه داخل این نسخه نیست. نسخه‌ی کامل را نصب کن."
+            error is FoxyBinaryMissingException -> "هسته‌ی Firefox VPN داخل این نسخه نیست. نسخه‌ی کامل را نصب کن."
             error is SecureStorageException -> "حافظه‌ی امن گوشی در دسترس نیست. قفل گوشی را باز کن و دوباره امتحان کن."
             error is QuotaExceededError -> "سهمیه‌ی رایگان این ماه حساب فایرفاکس تمام شده."
             error is FastlyBlockedException -> "سد ضدربات موزیلا درخواست را رد کرد (۴۰۶). شبکه را عوض کن (وای‌فای / دیتا) و دوباره امتحان کن."
@@ -157,7 +157,7 @@ object FoxyErrors {
             error is GuardianHttpError && error.statusCode == 429 -> "موزیلا موقتاً درخواست‌ها را محدود کرده. چند دقیقه بعد امتحان کن."
             error is GuardianHttpError && (error.statusCode == 451 || error.statusCode == 403) -> "سرویس VPN فایرفاکس برای این منطقه یا حساب در دسترس نیست."
             error is GuardianHttpError -> "سرور VPN موزیلا پاسخ نداد (${error.statusCode ?: "شبکه"})."
-            error is FoxyUnusableException -> "هیچ مسیری به سرورهای روباه سرعت قابل‌قبول نداد."
+            error is FoxyUnusableException -> "هیچ مسیری به سرورهای Firefox VPN سرعت قابل‌قبول نداد."
             error is CancellationException -> "لغو شد."
             error is java.net.UnknownHostException -> "نام سرور پیدا نشد. اینترنت یا DNS را بررسی کن."
             error is java.net.SocketTimeoutException || error is java.io.InterruptedIOException -> "زمان اتصال تمام شد. شبکه کند است یا مسدود شده."

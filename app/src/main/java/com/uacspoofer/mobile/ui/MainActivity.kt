@@ -44,21 +44,41 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
+    /**
+     * The connect attempt the permission prompts belong to. A cancel (or any newer tap)
+     * moves the state away from CONNECTING, and a late prompt result must not then start
+     * the service anyway. Survives recreation so a consent granted after process death
+     * still connects.
+     */
+    private var awaitingConsent = false
+
     private val vpnPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
-        val granted = result.resultCode == Activity.RESULT_OK || VpnService.prepare(this) == null
-        if (granted) {
-            startVpnService()
-        } else {
-            ConnectionStateStore.markError()
+        val wasAwaiting = awaitingConsent
+        awaitingConsent = false
+        val granted = result.resultCode == Activity.RESULT_OK ||
+            runCatching { VpnService.prepare(this) == null }.getOrDefault(false)
+        val state = ConnectionStateStore.state.value
+        when {
+            granted && state == ConnectionState.CONNECTING -> startVpnService()
+            // Process was recreated while the system dialog was up: the store starts fresh.
+            granted && wasAwaiting && ConnectionStateStore.tryBeginConnect() -> startVpnService()
+            granted -> Unit // cancelled meanwhile
+            state == ConnectionState.CONNECTING -> ConnectionStateStore.markErrorNow("اجازه‌ی VPN داده نشد")
         }
     }
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
-        continueConnectionStart()
+        // The user may have cancelled while the notification prompt was open.
+        if (ConnectionStateStore.state.value == ConnectionState.CONNECTING) continueConnectionStart()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(STATE_AWAITING_CONSENT, awaitingConsent)
     }
 
     override fun attachBaseContext(newBase: Context) {
@@ -91,6 +111,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        awaitingConsent = savedInstanceState?.getBoolean(STATE_AWAITING_CONSENT, false) == true
         if (!com.uacspoofer.mobile.security.IntegrityGuard.isTrusted(this)) {
             enableEdgeToEdge()
             setContent { UacSniSpooferTheme { TamperScreen() } }
@@ -203,18 +224,21 @@ class MainActivity : ComponentActivity() {
             if (prepareIntent == null) {
                 startVpnService()
             } else {
+                awaitingConsent = true
                 vpnPermissionLauncher.launch(prepareIntent)
             }
         } catch (_: Throwable) {
-            ConnectionStateStore.markError()
+            awaitingConsent = false
+            ConnectionStateStore.markErrorNow("اجازه‌ی VPN در دسترس نیست")
         }
     }
 
     private fun startVpnService() {
+        if (ConnectionStateStore.state.value != ConnectionState.CONNECTING) return
         try {
             VpnController.start(this)
         } catch (_: Throwable) {
-            ConnectionStateStore.markError()
+            ConnectionStateStore.markErrorNow("سرویس اتصال شروع نشد")
         }
     }
 
@@ -249,5 +273,6 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_CONNECT_FROM_QUICK_TILE = "com.uacspoofer.mobile.extra.CONNECT_FROM_QUICK_TILE"
+        private const val STATE_AWAITING_CONSENT = "simorgh.awaitingVpnConsent"
     }
 }

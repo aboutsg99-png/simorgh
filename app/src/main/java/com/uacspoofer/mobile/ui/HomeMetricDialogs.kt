@@ -181,9 +181,9 @@ internal fun HomeCountryDialog(
         visible = visible,
         title = homeText("My IP Information", "اطلاعات IP من"),
         subtitle = when {
-            throughPow -> homeText("Public exit details through Shahpar", "مشخصات IP خروجی از طریق شاهپر")
-            throughTor -> homeText("Public exit details through Sayeh", "مشخصات IP خروجی از طریق سایه")
-            else -> homeText("Public exit details through Parvaz", "مشخصات IP خروجی از طریق پرواز")
+            throughPow -> homeText("Public exit details through Psiphon/WARP", "مشخصات IP خروجی از طریق Psiphon/WARP")
+            throughTor -> homeText("Public exit details through Tor", "مشخصات IP خروجی از طریق Tor")
+            else -> homeText("Public exit details through Xray", "مشخصات IP خروجی از طریق Xray")
         },
         icon = Icons.Outlined.Public,
         onDismissRequest = onDismissRequest,
@@ -266,9 +266,9 @@ internal fun HomeCountryDialog(
             ) {
                 Text(
                     text = "${info.provider} • ${formatTime(info.fetchedAtMs)} • ${when {
-                        throughPow -> "Shahpar SOCKS"
-                        throughTor -> "Sayeh SOCKS"
-                        else -> "Parvaz SOCKS"
+                        throughPow -> "Psiphon/WARP SOCKS"
+                        throughTor -> "Tor SOCKS"
+                        else -> "Xray SOCKS"
                     }}",
                     color = UacColors.TextSecondary.copy(alpha = 0.78f),
                     fontSize = 9.5.sp,
@@ -325,8 +325,8 @@ internal fun HomePingDialog(
         visible = visible,
         title = homeText("Ping details", "جزئیات پینگ"),
         subtitle = when {
-            throughPow -> homeText("Live HTTPS measurement through Shahpar", "سنجش زنده مسیر HTTPS از شاهپر")
-            throughTor -> homeText("Live HTTPS measurement through Sayeh", "سنجش زنده مسیر HTTPS از سایه")
+            throughPow -> homeText("Live HTTPS measurement through Psiphon/WARP", "سنجش زنده مسیر HTTPS از Psiphon/WARP")
+            throughTor -> homeText("Live HTTPS measurement through Tor", "سنجش زنده مسیر HTTPS از Tor")
             else -> homeText("Live HTTPS route measurement", "سنجش زنده مسیر HTTPS")
         },
         icon = Icons.Outlined.Speed,
@@ -483,16 +483,16 @@ internal fun HomePingDialog(
                 homeText("Method", "روش تست"),
                 when {
                     throughPow -> homeText(
-                        "HTTPS payload through Shahpar SOCKS",
-                        "ارسال HTTPS از SOCKS مربوط به شاهپر",
+                        "HTTPS payload through Psiphon/WARP SOCKS",
+                        "ارسال HTTPS از SOCKS مربوط به Psiphon/WARP",
                     )
                     throughTor -> homeText(
-                        "HTTPS payload through Sayeh SOCKS",
-                        "ارسال HTTPS از SOCKS مربوط به سایه",
+                        "HTTPS payload through Tor SOCKS",
+                        "ارسال HTTPS از SOCKS مربوط به Tor",
                     )
                     else -> homeText(
-                        "HTTPS payload through Parvaz tunnel",
-                        "ارسال HTTPS از تونل پرواز",
+                        "HTTPS payload through Xray tunnel",
+                        "ارسال HTTPS از تونل Xray",
                     )
                 },
             )
@@ -736,10 +736,10 @@ private fun HomePowCountryDialogRow(
     }
     val iso = code.uppercase(Locale.US)
     val subtitle = when {
-        direct && automatic -> homeText("Tir Boost exit", "خروجی شتاب دایرکت")
-        direct -> homeText("Abr exit · $iso", "خروجی سایفون · $iso")
-        automatic -> homeText("Abr picks the best exit", "خروجی را ابر انتخاب می‌کند")
-        else -> homeText("Shahpar EXIT • $iso", "خروجی شاهپر • $iso")
+        direct && automatic -> homeText("Direct Boost exit", "خروجی شتاب دایرکت")
+        direct -> homeText("Psiphon exit · $iso", "خروجی سایفون · $iso")
+        automatic -> homeText("Psiphon picks the best exit", "خروجی را Psiphon انتخاب می‌کند")
+        else -> homeText("Psiphon/WARP EXIT • $iso", "خروجی Psiphon/WARP • $iso")
     }
     val accent = if (connected) UacColors.ConnectedGreen else DialogBlue
     val highlighted = selected || connected
@@ -847,10 +847,10 @@ private fun HomeTorCountryDialogRow(
         TorExitCountry.displayName(code, nameLocale)
     }
     val subtitle = if (automatic) {
-        homeText("Sayeh picks the best exit", "خروجی را سایه انتخاب می‌کند")
+        homeText("Tor picks the best exit", "خروجی را Tor انتخاب می‌کند")
     } else {
         val iso = code.uppercase(Locale.US)
-        homeText("SAYEH EXIT • $iso", "خروجی سایه • $iso")
+        homeText("TOR EXIT • $iso", "خروجی Tor • $iso")
     }
     val accent = if (connected) UacColors.ConnectedGreen else DialogBlue
     val highlighted = selected || connected

@@ -41,6 +41,9 @@ import com.uacspoofer.mobile.engine.foxy.FoxyFallback
 import com.uacspoofer.mobile.engine.foxy.FoxyNotSignedInException
 import com.uacspoofer.mobile.engine.foxy.FoxyPhase
 import com.uacspoofer.mobile.engine.foxy.FoxyStatusStore
+import com.uacspoofer.mobile.engine.wireguard.WgPhase
+import com.uacspoofer.mobile.engine.wireguard.WgStatusStore
+import com.uacspoofer.mobile.engine.wireguard.WireGuardConnectionCoordinator
 import com.uacspoofer.mobile.engine.tor.TorDaemon
 import com.uacspoofer.mobile.engine.tor.TorEngineStore
 import com.uacspoofer.mobile.engine.tor.TorPhase
@@ -173,6 +176,8 @@ class UacVpnService : VpnService() {
     private lateinit var powCoordinator: PowConnectionCoordinator
     private lateinit var directCoordinator: DirectConnectionCoordinator
     private lateinit var foxyCoordinator: FoxyConnectionCoordinator
+    private lateinit var wgCoordinator: WireGuardConnectionCoordinator
+    @Volatile private var wgHealthFailures = 0
     @Volatile private var foxyHealthFailures = 0
     private lateinit var networkGuardStore: NetworkGuardStore
 
@@ -209,6 +214,7 @@ class UacVpnService : VpnService() {
         }
         directCoordinator = DirectConnectionCoordinator(this)
         foxyCoordinator = FoxyConnectionCoordinator(this)
+        wgCoordinator = WireGuardConnectionCoordinator(this)
         networkGuardStore = NetworkGuardStore.get(this)
         androidx.core.content.ContextCompat.registerReceiver(
             this,
@@ -554,7 +560,14 @@ class UacVpnService : VpnService() {
             AppLogRepository.info(LogSource.SERVICE, "Connect queued until the current disconnect finishes")
             return
         }
-        if (resourcesActive || connectJob?.isActive == true) return
+        if (resourcesActive || connectJob?.isActive == true) {
+            // Already up (or coming up). If the UI went ERROR -> CONNECTING meanwhile, re-publish
+            // the real state instead of dropping the request and leaving the button spinning.
+            if (resourcesActive && connectJob?.isActive != true && runCatching { activeCoreRunning() }.getOrDefault(false)) {
+                ConnectionStateStore.markConnected()
+            }
+            return
+        }
         val settings = advancedSettingsStore.snapshot()
         activeConnectionMode = settings.connectionMode
         activeEngine = engineModeStore.snapshot()
@@ -592,6 +605,7 @@ class UacVpnService : VpnService() {
                         activeEngine.isPow -> connectPowEngine(token, settings)
                         activeEngine.isDirect -> connectDirectEngine(token, settings)
                         activeEngine.isFoxy -> connectFoxyEngine(token, settings)
+                        activeEngine.isWireGuard -> connectWireGuardEngine(token, settings)
                         else -> {
                             val profile = profileStore.selectedProfile()
                             connectXray(token, settings, profile)
@@ -619,6 +633,9 @@ class UacVpnService : VpnService() {
                 if (activeEngine.isFoxy && ConnectionStateStore.state.value != ConnectionState.CONNECTING) {
                     FoxyStatusStore.reset()
                 }
+                if (activeEngine.isWireGuard && ConnectionStateStore.state.value != ConnectionState.CONNECTING) {
+                    WgStatusStore.reset()
+                }
             } catch (error: Throwable) {
                 if (activeEngine.isDirect && token != generation.get()) return@launch
                 ConnectRescueStore.hide()
@@ -635,6 +652,9 @@ class UacVpnService : VpnService() {
                 }
                 if (activeEngine.isDirect) {
                     DirectStatusStore.update(DirectPhase.FAILED, 0, error.message.orEmpty().ifBlank { "Direct connect failed" })
+                }
+                if (activeEngine.isWireGuard) {
+                    WgStatusStore.update { it.copy(phase = WgPhase.FAILED, detail = error.message.orEmpty().take(160)) }
                 }
                 if (activeEngine.isFoxy) {
                     val reason = FoxyErrors.persian(error)
@@ -687,6 +707,10 @@ class UacVpnService : VpnService() {
             activeEngine.isFoxy -> {
                 foxyCoordinator.reload(paused)
                 AppLogRepository.info(LogSource.SERVICE, "[FOXY] core reloaded pause=$paused")
+            }
+            activeEngine.isWireGuard -> {
+                wgCoordinator.reload(paused)
+                AppLogRepository.info(LogSource.SERVICE, "[WG] core reloaded pause=$paused")
             }
             activeEngine.isPow || activeEngine.isTor -> {
                 // SOCKS split already honors the flag; live sockets were dropped in setTrafficPaused.
@@ -761,6 +785,7 @@ class UacVpnService : VpnService() {
         )
         when {
             activeEngine.isFoxy -> foxyCoordinator.reload(VpnPauseStore.isPaused())
+            activeEngine.isWireGuard -> wgCoordinator.reload(VpnPauseStore.isPaused())
             activeEngine.isPow || activeEngine.isTor -> {
                 // SOCKS match is live; nothing to rebuild.
                 AppLogRepository.info(LogSource.SERVICE, "Whitelist live for PoW/Tor SOCKS (no reload)")
@@ -877,6 +902,7 @@ class UacVpnService : VpnService() {
         if (generation.get() != stopToken) return
         if (activeEngine.isPow) runCatching { powCoordinator.forceRelease() }
         runCatching { foxyCoordinator.stop() }
+        runCatching { wgCoordinator.stop() }
         connectJob?.cancel()
         connectJob = null
         healthJob?.cancel()
@@ -926,7 +952,7 @@ class UacVpnService : VpnService() {
     }
 
     private fun requestSwitchProfile() {
-        if (engineModeStore.snapshot().isTor || engineModeStore.snapshot().isPow || engineModeStore.snapshot().isFoxy) {
+        if (engineModeStore.snapshot().isTor || engineModeStore.snapshot().isPow || engineModeStore.snapshot().isFoxy || engineModeStore.snapshot().isWireGuard) {
             AppLogRepository.info(LogSource.SERVICE, "Profile switch ignored while a dedicated engine is selected")
             return
         }
@@ -1653,14 +1679,14 @@ class UacVpnService : VpnService() {
             if (error is FoxyNotSignedInException || fallback == FoxyFallback.NONE) throw error
             coroutineContext.ensureActive()
             if (token != generation.get()) throw CancellationException("stale connect generation")
-            val target = if (fallback == FoxyFallback.SHAHPAR) "شاهپر" else "پرواز"
+            val target = if (fallback == FoxyFallback.SHAHPAR) "Psiphon/WARP" else "Xray"
             FoxyStatusStore.update { it.copy(phase = FoxyPhase.FALLBACK, detail = "$reason ← رفتن به موتور $target") }
             AppLogRepository.warning(LogSource.SERVICE, "[FOXY] falling back to ${fallback.id}")
             withContext(Dispatchers.Main) {
                 runCatching {
                     android.widget.Toast.makeText(
                         this@UacVpnService,
-                        "روباه وصل نشد؛ با موتور $target ادامه می‌دهم",
+                        "Firefox VPN وصل نشد؛ با موتور $target ادامه می‌دهم",
                         android.widget.Toast.LENGTH_LONG,
                     ).show()
                 }
@@ -1691,6 +1717,41 @@ class UacVpnService : VpnService() {
         AppLogRepository.success(LogSource.SERVICE, "[FOXY] Firefox VPN active ${foxyCoordinator.activeLabel()}")
     }
 
+    /** Engine 6: WireGuard (own configs, Proton VPN, Windscribe) on Xray's userspace outbound. */
+    private suspend fun connectWireGuardEngine(token: Long, settings: AdvancedSettingsData) {
+        coroutineContext.ensureActive()
+        if (token != generation.get()) throw CancellationException("stale connect generation")
+        activeEngine = EngineMode.WIREGUARD
+        wgHealthFailures = 0
+        WgStatusStore.reset()
+        runCatching { torCoordinator.stop() }
+        runCatching { powCoordinator.stop() }
+        runCatching { directCoordinator.stop() }
+        runCatching { foxyCoordinator.stop() }
+        runCatching { nativeTunEngine.stop() }
+        runCatching { proxyCore.stop() }
+        try {
+            wgCoordinator.connect(settings, sessionTunBackend) { candidateSettings -> establishTun(candidateSettings) }
+        } catch (error: Throwable) {
+            runCatching { wgCoordinator.stop() }
+            throw error
+        }
+        coroutineContext.ensureActive()
+        if (token != generation.get()) throw CancellationException("stale connect generation")
+        resourcesActive = true
+        if (!ConnectionStateStore.markConnected()) {
+            cleanupRoute()
+            resourcesActive = false
+            return
+        }
+        runCatching { updateNotification(connected = true) }
+            .onFailure { Log.w(TAG, "connected notification update failed", it) }
+        if (!isProxyMode()) startStatsMonitor(token)
+        startHealthMonitor(token)
+        onSessionUp()
+        AppLogRepository.success(LogSource.SERVICE, "[WG] WireGuard active ${wgCoordinator.activeLabel()}")
+    }
+
     private fun requestApplyDirectExit() {
         if (!activeEngine.isDirect || disconnectInFlight) return
         val state = ConnectionStateStore.state.value
@@ -1707,7 +1768,7 @@ class UacVpnService : VpnService() {
         if (ConnectionStateStore.state.value != ConnectionState.CONNECTED) return
         val country = FoxyEngineStore.get(this).snapshot().countryCode.ifBlank { "fastest" }
         AppLogRepository.info(LogSource.SERVICE, "[FOXY] reconnecting for country=$country")
-        scheduleRuntimeRecovery(generation.get(), "Rubah country changed", penalizeCandidate = false)
+        scheduleRuntimeRecovery(generation.get(), "Firefox VPN country changed", penalizeCandidate = false)
     }
 
     private fun requestApplyPowExit() {
@@ -1780,7 +1841,7 @@ class UacVpnService : VpnService() {
         settings: AdvancedSettingsData,
     ): android.os.ParcelFileDescriptor? {
         val routing = AppRoutingPreferences.snapshot(this)
-        val torRelay = activeEngine.isTor || activeEngine.isFoxy
+        val torRelay = activeEngine.isTor || activeEngine.isFoxy || activeEngine.isWireGuard
         val dns = if (torRelay) TorTunRelayConfig.MAP_DNS else settings.nativeDns
         AppLogRepository.debug(
             LogSource.TUN,
@@ -1888,6 +1949,7 @@ class UacVpnService : VpnService() {
         runCatching { directCoordinator.stop() }
         runCatching { powCoordinator.stop() }
         runCatching { foxyCoordinator.stop() }
+        runCatching { wgCoordinator.stop() }
         nativeTunEngine.stop()
         proxyCore.stop()
         TunPacketFilter.stop()
@@ -1911,6 +1973,7 @@ class UacVpnService : VpnService() {
         activeEngine.isPow -> powCoordinator.tunStats()
         activeEngine.isDirect -> directCoordinator.tunStats()
         activeEngine.isFoxy -> foxyCoordinator.tunStats()
+        activeEngine.isWireGuard -> wgCoordinator.tunStats()
         else -> nativeTunEngine.stats()
     }
 
@@ -1920,6 +1983,7 @@ class UacVpnService : VpnService() {
         activeEngine.isPow -> TunStats.ZERO
         activeEngine.isDirect -> TunStats.ZERO
         activeEngine.isFoxy -> TunStats.ZERO
+        activeEngine.isWireGuard -> TunStats.ZERO
         else -> nativeTunEngine.probeStats()
     }
 
@@ -1930,6 +1994,7 @@ class UacVpnService : VpnService() {
         activeEngine.isPow -> powCoordinator.isRunning()
         activeEngine.isDirect -> directCoordinator.isRunning()
         activeEngine.isFoxy -> foxyCoordinator.isRunning()
+        activeEngine.isWireGuard -> wgCoordinator.isRunning()
         isProxyMode() -> proxyCore.isRunning()
         else -> nativeTunEngine.isRunning()
     }
@@ -2161,7 +2226,7 @@ class UacVpnService : VpnService() {
 
     private fun maybePrewarm(reason: String) {
         if (!resourcesActive || ConnectionStateStore.state.value != ConnectionState.CONNECTED) return
-        if (activeEngine.isTor || activeEngine.isPow || activeEngine.isDirect || activeEngine.isFoxy) return
+        if (activeEngine.isTor || activeEngine.isPow || activeEngine.isDirect || activeEngine.isFoxy || activeEngine.isWireGuard) return
         if (!advancedSettingsStore.snapshot().prewarm) return
         val now = android.os.SystemClock.elapsedRealtime()
         if (now - lastPrewarmAt < PREWARM_MIN_GAP_MS) return
@@ -2204,6 +2269,25 @@ class UacVpnService : VpnService() {
                         return@launch
                     }
                     nextDelayMs = TOR_WATCHDOG_INTERVAL_MS
+                    continue
+                }
+                if (activeEngine.isWireGuard) {
+                    if (!activeCoreRunning()) {
+                        AppLogRepository.warning(LogSource.SERVICE, "[WG] core or relay exited; recovering")
+                        scheduleRuntimeRecovery(token, "WireGuard core exited", penalizeCandidate = false)
+                        return@launch
+                    }
+                    nextDelayMs = FOXY_WATCHDOG_INTERVAL_MS
+                    if (VpnPauseStore.isPaused() || !isScreenInteractive()) continue
+                    val ok = runCatching { wgCoordinator.healthy() }.getOrDefault(false)
+                    if (token != generation.get() || !resourcesActive) return@launch
+                    wgHealthFailures = if (ok) 0 else wgHealthFailures + 1
+                    if (wgHealthFailures >= 3) {
+                        AppLogRepository.warning(LogSource.SERVICE, "[WG] 3 failed checks through the tunnel; reconnecting")
+                        scheduleRuntimeRecovery(token, "WireGuard watchdog failed", penalizeCandidate = false)
+                        return@launch
+                    }
+                    if (!ok) nextDelayMs = 15_000L
                     continue
                 }
                 if (activeEngine.isFoxy) {
@@ -2404,6 +2488,7 @@ class UacVpnService : VpnService() {
                         activeEngine.isPow -> connectPowEngine(recoveryToken, settings)
                         activeEngine.isDirect -> connectDirectEngine(recoveryToken, settings)
                         activeEngine.isFoxy -> connectFoxyEngine(recoveryToken, settings)
+                        activeEngine.isWireGuard -> connectWireGuardEngine(recoveryToken, settings)
                         else -> connectXray(recoveryToken, settings, profile, recovering = true)
                     }
                 }
@@ -2521,6 +2606,7 @@ class UacVpnService : VpnService() {
         activeEngine.isDirect -> directCoordinator.socksPort()
         activeEngine.isFoxy -> foxyCoordinator.socksPort().takeIf { it > 0 }
             ?: FoxyEngineStore.get(this).snapshot().socksPort
+        activeEngine.isWireGuard -> wgCoordinator.socksPort().takeIf { it > 0 } ?: advancedSettingsStore.snapshot().socksPort
         activeEngine.isTor -> torCoordinator.publicSocksPort().takeIf { it > 0 }
             ?: torEngineStore.snapshot().socksPort
         else -> advancedSettingsStore.snapshot().socksPort
@@ -2554,6 +2640,7 @@ class UacVpnService : VpnService() {
                     startLanShare()
                     // Rubah bakes "Iranian sites direct" into sing-box routing: rebuild if it changed.
                     if (activeEngine.isFoxy) runCatching { foxyCoordinator.reload(VpnPauseStore.isPaused()) }
+                    if (activeEngine.isWireGuard) runCatching { wgCoordinator.reload(VpnPauseStore.isPaused()) }
                 } else {
                     LanShareProxy.stop()
                 }
@@ -2822,11 +2909,12 @@ class UacVpnService : VpnService() {
         // After a Rubah fallback the running engine differs from the selected one.
         val engine = if (resourcesActive) activeEngine else engineModeStore.snapshot()
         return when {
-            engine.isFoxy -> "روباه"
-            engine.isTor -> "سایه"
-            engine.isPow -> "شاهپر"
-            engine.isDirect -> "تیر"
-            else -> "پرواز"
+            engine.isFoxy -> "Firefox VPN"
+            engine.isWireGuard -> "WireGuard"
+            engine.isTor -> "Tor"
+            engine.isPow -> "Psiphon/WARP"
+            engine.isDirect -> "Direct"
+            else -> "Xray"
         }
     }
 

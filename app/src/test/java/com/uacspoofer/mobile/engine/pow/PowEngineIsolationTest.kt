@@ -69,7 +69,10 @@ class PowEngineIsolationTest {
         assertEquals(EngineMode.TOR_WEBTUNNEL, EngineMode.XRAY_CF.next())
         assertEquals(EngineMode.UAC_POW, EngineMode.TOR_WEBTUNNEL.next())
         assertEquals(EngineMode.UAC_DIRECT, EngineMode.UAC_POW.next())
-        assertEquals(EngineMode.XRAY_CF, EngineMode.UAC_DIRECT.next())
+        // Engines 5 (Firefox VPN) and 6 (WireGuard) follow Direct before the cycle wraps.
+        assertEquals(EngineMode.FOXY_FIREFOX, EngineMode.UAC_DIRECT.next())
+        assertEquals(EngineMode.WIREGUARD, EngineMode.FOXY_FIREFOX.next())
+        assertEquals(EngineMode.XRAY_CF, EngineMode.WIREGUARD.next())
     }
 
     @Test

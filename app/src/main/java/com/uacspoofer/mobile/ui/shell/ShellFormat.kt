@@ -8,6 +8,7 @@ import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.NearMe
 import androidx.compose.material.icons.outlined.Pets
+import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -17,14 +18,9 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Locale
 
+/** User-facing engine name: the real name (Xray, Tor + WebTunnel, ...), no codenames. */
 val EngineMode.fa: String
-    get() = when (this) {
-        EngineMode.XRAY_CF -> "پرواز"
-        EngineMode.TOR_WEBTUNNEL -> "سایه"
-        EngineMode.UAC_POW -> "شاهپر"
-        EngineMode.UAC_DIRECT -> "تیر"
-        EngineMode.FOXY_FIREFOX -> "روباه"
-    }
+    get() = com.uacspoofer.mobile.simorgh.engineDisplayName(this)
 
 val EngineMode.icon: ImageVector
     get() = when (this) {
@@ -33,22 +29,24 @@ val EngineMode.icon: ImageVector
         EngineMode.UAC_POW -> Icons.Outlined.Shield
         EngineMode.UAC_DIRECT -> Icons.Outlined.NearMe
         EngineMode.FOXY_FIREFOX -> Icons.Outlined.Pets
+        EngineMode.WIREGUARD -> Icons.Outlined.VpnKey
     }
 
 val EngineMode.descFa: String
     get() = when (this) {
-        EngineMode.XRAY_CF -> "کانفیگ‌ها و لینک اشتراک خودت (Xray)"
-        EngineMode.TOR_WEBTUNNEL -> "مسیر چندلایه از روی پل‌ها (Tor)"
-        EngineMode.UAC_POW -> "زنجیره‌ی نور، ابر و پل (PoW)"
-        EngineMode.UAC_DIRECT -> "مستقیم، بدون سرور (Direct)"
-        EngineMode.FOXY_FIREFOX -> "فایرفاکس وی‌پی‌ان با حساب خودت (Firefox)"
+        EngineMode.XRAY_CF -> "VLESS، VMess، Trojan، Reality · کانفیگ و اشتراک خودتان"
+        EngineMode.TOR_WEBTUNNEL -> "شبکه‌ی Tor از روی پل‌های WebTunnel"
+        EngineMode.UAC_POW -> "Cloudflare WARP و Psiphon"
+        EngineMode.UAC_DIRECT -> "مستقیم، بدون سرور (عبور از DPI)"
+        EngineMode.FOXY_FIREFOX -> "Firefox VPN (MASQUE) با حساب خودتان"
+        EngineMode.WIREGUARD -> "کانفیگ WireGuard خودتان، Proton VPN یا Windscribe با حساب خودتان"
     }
 
 object SubEngines {
     data class Sub(val key: String, val fa: String, val latin: String, val desc: String, val icon: ImageVector)
-    val NUR = Sub("warp", "نور", "WARP", "تونل ابری سریع؛ بخشی از شاهپر", Icons.Outlined.WbSunny)
-    val ABR = Sub("psiphon", "ابر", "Psiphon", "شبکه‌ی گسترده و مقاوم؛ بخشی از شاهپر", Icons.Outlined.Cloud)
-    val POL = Sub("webtunnel", "پل", "WebTunnel", "پل‌های پنهان وب؛ برای سایه و شاهپر", Icons.Outlined.Link)
+    val NUR = Sub("warp", "Cloudflare WARP", "WARP", "تونل WireGuard/MASQUE کلودفلر", Icons.Outlined.WbSunny)
+    val ABR = Sub("psiphon", "Psiphon", "Psiphon", "شبکه‌ی گسترده و مقاوم Psiphon", Icons.Outlined.Cloud)
+    val POL = Sub("webtunnel", "WebTunnel", "WebTunnel", "پل‌های پنهان وب برای Tor", Icons.Outlined.Link)
     val AUTO_ICON = Icons.Outlined.AutoAwesome
     val all = listOf(NUR, ABR, POL)
 }
@@ -113,4 +111,17 @@ fun mbps(v: Double?): String = when {
     v >= 100 -> String.format(Locale.US, "%.0f", v)
     v >= 10 -> String.format(Locale.US, "%.1f", v)
     else -> String.format(Locale.US, "%.2f", v)
+}
+
+/** Official channel (owner, 1.1). */
+const val SIMORGH_TELEGRAM_HANDLE = "@theacproject"
+const val SIMORGH_TELEGRAM_URL = "https://t.me/theacproject"
+
+fun openTelegramChannel(context: android.content.Context) {
+    runCatching {
+        context.startActivity(
+            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(SIMORGH_TELEGRAM_URL))
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
 }

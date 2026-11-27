@@ -199,12 +199,12 @@ internal fun HomeGuideOverlay(
             }
             val body = when (step) {
                 HomeGuideStep.Engine -> homeText(
-                    "These three icons switch the connection engine. Tap the one you want — Cloudflare, Sayeh, or Shahpar.",
+                    "These three icons switch the connection engine. Tap the one you want — Cloudflare, Tor, or Psiphon/WARP.",
                     "با این سه آیکون می‌تونی موتور اتصال را عوض کنی. روی هر کدام که می‌خوای بزن.",
                 )
                 HomeGuideStep.Country -> homeText(
-                    "From this row on Home you can pick the Sayeh exit country. If you are not sure, Automatic is the best choice.",
-                    "از این بخش در خانه می‌توانی کشور خروجی سایه را انتخاب کنی. اگر مطمئن نیستی، خودکار بهترین انتخاب است.",
+                    "From this row on Home you can pick the Tor exit country. If you are not sure, Automatic is the best choice.",
+                    "از این بخش در خانه می‌توانی کشور خروجی Tor را انتخاب کنی. اگر مطمئن نیستی، خودکار بهترین انتخاب است.",
                 )
             }
             val arrowX = (targetRect.center.x - cardX - with(density) { 8.dp.toPx() })

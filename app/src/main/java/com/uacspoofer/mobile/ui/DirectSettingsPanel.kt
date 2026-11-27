@@ -95,7 +95,7 @@ internal fun DirectSettingsScreen(onBack: () -> Unit, unlocked: Boolean, onUnloc
                 PowCompactHeader(
                     accent = accent,
                     onBack = onBack,
-                    title = homeText("Tir settings", "تنظیمات تیر"),
+                    title = homeText("Direct settings", "تنظیمات Direct"),
                     subtitle = EngineCatalog.Tir.subtitle(),
                     icon = EngineCatalog.Tir.icon,
                 )
@@ -228,7 +228,7 @@ private fun DirectConnectionCard(
                 )
                 Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     DirectModeChoice(
-                        label = homeText("Tir", "تیر"),
+                        label = homeText("Direct", "Direct"),
                         icon = Icons.Outlined.Bolt,
                         selected = !settings.wireGuardOverDirect,
                         modifier = Modifier.weight(1f),
@@ -257,7 +257,7 @@ private fun DirectConnectionCard(
                 icon = Icons.Outlined.Public,
                 label = homeText("Exit country", "کشور خروجی"),
                 sheetTitle = homeText("Exit country", "کشور خروجی"),
-                subtitle = homeText("Picking a country turns on Abr.", "با انتخاب کشور، سایفون روشن می‌شود."),
+                subtitle = homeText("Picking a country turns on Psiphon.", "با انتخاب کشور، سایفون روشن می‌شود."),
                 choices = listOf(PowMenuChoice("", homeText("Automatic", "خودکار"))) + countries,
                 selectedId = settings.exitCountryCode,
                 unlistedTitle = settings.exitCountryCode.takeIf { it.isNotBlank() }?.let { PowRegions.name(it, nameLocale) },

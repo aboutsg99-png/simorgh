@@ -20,7 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Colorize
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
@@ -34,6 +34,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -62,9 +63,9 @@ fun PersonalizeScreen(onBack: () -> Unit, contentPadding: PaddingValues) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item(key = "head") {
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                RoundIconButton(Icons.AutoMirrored.Outlined.ArrowForward, onBack)
+                RoundIconButtonFlat(Icons.AutoMirrored.Outlined.ArrowBack, onBack, description = "بازگشت")
                 Spacer(Modifier.width(12.dp))
-                SText("شخصی‌سازی", size = 26.sp, weight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                SText("شخصی‌سازی", size = 21.sp, weight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 SChip("بازنشانی", icon = Icons.Outlined.Restore, selected = true) { store.reset() }
             }
         }
@@ -116,8 +117,6 @@ fun PersonalizeScreen(onBack: () -> Unit, contentPadding: PaddingValues) {
         item(key = "surf-t") { SectionTitle("سطح‌ها و متن") }
         item(key = "surf") {
             Column(Modifier.fillMaxWidth().sxCard(sx).padding(14.dp)) {
-                SliderRow("شدت شیشه", "${(p.glass * 100).toInt()}٪", p.glass, 0f..1f, "مات", "شفاف") { v -> store.update { it.copy(glass = v) } }
-                DividerLine(Modifier.padding(vertical = 10.dp))
                 SliderRow("گردی گوشه‌ها", "${p.radius} dp", p.radius.toFloat(), 0f..28f, "0", "28") { v -> store.update { it.copy(radius = v.toInt()) } }
                 DividerLine(Modifier.padding(vertical = 10.dp))
                 SText("اندازه‌ی متن", size = 15.sp, weight = FontWeight.SemiBold)
@@ -167,6 +166,27 @@ fun PersonalizeScreen(onBack: () -> Unit, contentPadding: PaddingValues) {
                 }
             }
         }
+        item(key = "hero-t") { SectionTitle("ظاهر بالای صفحه") }
+        item(key = "hero") {
+            Row(Modifier.fillMaxWidth().sxCard(sx).padding(10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                HeroStyle.entries.forEach { h ->
+                    val on = h == p.hero
+                    Column(
+                        Modifier.weight(1f).clip(RoundedCornerShape(16.dp))
+                            .background(if (on) sx.accent.copy(alpha = 0.12f) else sx.surfaceHigh.copy(alpha = 0.4f))
+                            .then(if (on) Modifier.border(1.5.dp, sx.accent, RoundedCornerShape(16.dp)) else Modifier)
+                            .sxClick { store.update { it.copy(hero = h) } }.padding(vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        CompositionLocalProvider(LocalSx provides sx.copy(hero = h)) {
+                            HeroArcs(com.uacspoofer.mobile.core.ConnectionState.CONNECTED, Modifier.size(width = 72.dp, height = 40.dp).clip(RoundedCornerShape(10.dp)))
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        SText(h.fa, size = 12.5.sp, color = if (on) sx.accent else sx.textDim)
+                    }
+                }
+            }
+        }
         item(key = "anim-t") { SectionTitle("انیمیشن‌ها") }
         item(key = "anim") {
             Column(Modifier.fillMaxWidth().sxCard(sx).padding(12.dp)) {
@@ -183,6 +203,21 @@ fun PersonalizeScreen(onBack: () -> Unit, contentPadding: PaddingValues) {
                 }
                 Spacer(Modifier.height(8.dp))
                 SText("در گوشی‌های ضعیف‌تر «کم» یا «خاموش» برنامه را روان‌تر می‌کند و باتری کمتری مصرف می‌شود. در حالت‌های کم‌مصرف باتری، انیمیشن‌ها خودکار کم یا خاموش می‌شوند.", size = 12.sp, color = sx.textDim, maxLines = 4)
+                DividerLine(Modifier.padding(vertical = 10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        SText("انیمیشن نقشه", size = 15.sp, weight = FontWeight.SemiBold)
+                        SText(
+                            when (sx.anim) {
+                                AnimLevel.FULL -> "حرکت نرم تا کشور خروجی و نقطه‌ی تپنده"
+                                AnimLevel.REDUCED -> "حالت کم‌مصرف: فقط یک حرکت، بدون تپش"
+                                AnimLevel.OFF -> "حالت فوق‌کم‌مصرف: نقشه ثابت است"
+                            },
+                            size = 12.sp, color = sx.textDim, maxLines = 2,
+                        )
+                    }
+                    SToggle(p.mapAnim, { v -> store.update { it.copy(mapAnim = v) } }, enabled = sx.anim != AnimLevel.OFF)
+                }
             }
         }
         item(key = "cards-t") {

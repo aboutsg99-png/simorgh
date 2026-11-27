@@ -123,7 +123,7 @@ internal fun BatteryManagementScreen(engineMode: EngineMode, onMenuClick: () -> 
                         if (engineMode.isDirect) {
                             PowSwitchRow(
                                 icon = Icons.Outlined.NetworkCheck,
-                                title = homeText("Lighter Tir checks", "بررسی سبک اتصال دایرکت"),
+                                title = homeText("Lighter Direct checks", "بررسی سبک اتصال دایرکت"),
                                 subtitle = homeText(
                                     "Runs fewer checks while the screen is off.",
                                     "با صفحهٔ خاموش، دایرکت کمتر بررسی می‌شود.",
@@ -136,7 +136,7 @@ internal fun BatteryManagementScreen(engineMode: EngineMode, onMenuClick: () -> 
                         } else if (powStore != null && powOptimized != null) {
                             PowSwitchRow(
                                 icon = Icons.Outlined.NetworkCheck,
-                                title = homeText("Lighter Shahpar checks", "بررسی سبک اتصال شاهپر"),
+                                title = homeText("Lighter Psiphon/WARP checks", "بررسی سبک اتصال Psiphon/WARP"),
                                 subtitle = homeText(
                                     "Uses lighter checks from the next connection.",
                                     "بررسی‌های کم‌مصرف‌تر از اتصال بعدی.",

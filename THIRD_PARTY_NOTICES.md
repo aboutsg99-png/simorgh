@@ -34,7 +34,7 @@ x86_64      494154A10429A43494D14AC1A78F44870206121D6E8AFBEE6ED94CF3CF68999A
 
 ## hev-socks5-tunnel
 
-- Purpose: lightweight TUN-to-SOCKS pipe for Tor and UAC PoW device tunnels
+- Purpose: lightweight TUN-to-SOCKS pipe for Tor and the PoW engine device tunnels
 - License: MIT
 - Bundled license: `third_party/hev-socks5-tunnel-LICENSE.txt`
 - Upstream: https://github.com/heiher/hev-socks5-tunnel
@@ -48,14 +48,14 @@ x86_64      494154A10429A43494D14AC1A78F44870206121D6E8AFBEE6ED94CF3CF68999A
 - Build instructions: [Zeptun on Android](core/zeptun/README.md)
 - Upstream: https://github.com/Noisemux/zeptun
 
-## UAC PoW · WARP core (vendored)
+## Simorgh PoW · WARP core (vendored)
 
-- Purpose: outer WARP / MASQUE / WireGuard hop for the UAC PoW engine
+- Purpose: outer WARP / MASQUE / WireGuard hop for the the PoW engine engine
 - License: GNU Affero GPL v3
 - Bundled license and trademark notice: `core/aether/LICENSE` and `core/aether/TRADEMARK.md`
 - Location: `core/aether/` (plus `core/quiche/` for QUIC)
 
-## UAC Direct Core
+## Simorgh Direct Core
 
 - Artifact: `libDirect.so` for Engine 4, with a separate Android JNI bridge
 - Source attribution: includes transport primitives adapted from the Aether project
@@ -73,20 +73,20 @@ x86_64      494154A10429A43494D14AC1A78F44870206121D6E8AFBEE6ED94CF3CF68999A
 
 ## Psiphon tunnel-core
 
-- Purpose: inner circumvention hop for UAC PoW (`psiphontunnel-2.0.39.aar`)
+- Purpose: inner circumvention hop for the PoW engine (`psiphontunnel-2.0.39.aar`)
 - License: GNU GPL v3
 - Bundled AAR: `app/libs/psiphontunnel-2.0.39.aar`
 - Upstream: https://github.com/Psiphon-Labs/psiphon-tunnel-core
 
 
-## Engine 4 (UAC Direct) method
+## Engine 4 (Direct) method
 
 The manual ClientHello fragmentation presets are adapted from [patterniha/Serverless-for-Iran](https://github.com/patterniha/Serverless-for-Iran). The app generates the Xray config in Kotlin.
 
 ## ByeDPI
 
 - Version: `v0.17.3` at `7efde1b1296eaaa187b70e951894dde17527489c`
-- Purpose: optional loopback SOCKS outbounds for OOB and SNI-aware TLS record fragmentation in UAC Direct
+- Purpose: optional loopback SOCKS outbounds for OOB and SNI-aware TLS record fragmentation in Direct
 - License: MIT
 - Bundled license: `app/src/main/assets/byedpi-LICENSE.txt`
 - Build script: `scripts/vendor-byedpi.ps1`
@@ -119,3 +119,5 @@ The manual ClientHello fragmentation presets are adapted from [patterniha/Server
 - Ookla Speedtest.net public server list and server endpoints (`/hello`, `/download`, `/upload`) for the international speed test
 - Shatel LibreSpeed backend (`speed-interior.shatel.ir`) for the domestic speed test
 - DB-IP free API (`api.db-ip.com/v2/free/self`) and Cloudflare `cdn-cgi/trace` for the exit IP and country check
+- Proton VPN account API (`account.protonvpn.com/api`, only with the user's own signed-in session) and Windscribe's config generator page (opened in the browser) for the WireGuard engine
+- Public DNS resolvers raced by Game DNS (listed in `engine/gamedns/GameDns.kt`) and Cloudflare's published IP ranges for the clean-IP scanner

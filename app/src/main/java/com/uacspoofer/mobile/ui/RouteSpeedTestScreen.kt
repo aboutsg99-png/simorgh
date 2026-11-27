@@ -724,7 +724,7 @@ private fun RoutePreparationStep.localizedTitle(): String = when (this) {
     RoutePreparationStep.NETWORK_DETECTION -> homeText("Network detection", "شناسایی شبکه")
     RoutePreparationStep.EDGE_POOL -> homeText("Edge collection", "جمع‌آوری ${ltr("Edge")}")
     RoutePreparationStep.TCP_TLS_PREFLIGHT -> homeText("TCP/TLS preflight", "پیش‌آزمایش ${ltr("TCP/TLS")}")
-    RoutePreparationStep.XRAY_SCREENING -> homeText("Parvaz screening", "غربال با پرواز")
+    RoutePreparationStep.XRAY_SCREENING -> homeText("Xray screening", "غربال با Xray")
     RoutePreparationStep.CONNECTIVITY_VALIDATION -> homeText("HTTP + DNS validation", "بررسی ${ltr("HTTP + DNS")}")
     RoutePreparationStep.ROUTE_MATRIX -> homeText("Route matrix", "ساخت مسیرها")
 }
@@ -748,8 +748,8 @@ private fun preparationLiveDetail(progress: RoutePreparationProgress): String = 
         "در حال بررسی ${ltr("TCP/TLS")} روی ${ltr(progress.currentTarget.ifBlank { "Edge بعدی" })}",
     )
     RoutePreparationStep.XRAY_SCREENING -> homeText(
-        "Screening ${progress.currentTarget.ifBlank { "edge routes" }} with isolated Parvaz starts",
-        "مسیر ${ltr(progress.currentTarget.ifBlank { "Edge" })} با اجرای مستقل پرواز غربال می‌شه",
+        "Screening ${progress.currentTarget.ifBlank { "edge routes" }} with isolated Xray starts",
+        "مسیر ${ltr(progress.currentTarget.ifBlank { "Edge" })} با اجرای مستقل Xray غربال می‌شه",
     )
     RoutePreparationStep.CONNECTIVITY_VALIDATION -> homeText(
         "Checking HTTP and DNS on ${progress.currentTarget.ifBlank { "healthy edges" }}",
@@ -1715,7 +1715,7 @@ private fun SavedRouteBlock(title: String, route: SavedRouteDetails, accent: Col
             DialogValue("TUN MTU", route.mtu.toString())
             DialogValue(
                 homeText("Compatibility", "سازگاری"),
-                if (route.directCompat) homeText("Tir compatibility", "اتصال مستقیم سازگار") else homeText("Adaptive route", "مسیر تطبیقی"),
+                if (route.directCompat) homeText("Direct compatibility", "اتصال مستقیم سازگار") else homeText("Adaptive route", "مسیر تطبیقی"),
             )
             DialogValue("Candidate ID", route.id, monospace = true)
         }
@@ -1789,8 +1789,8 @@ private fun stageExplanation(stage: RouteTournamentStage): StageExplanation = wh
     RouteTournamentStage.QUALIFIER -> StageExplanation(
         homeText("Quickly eliminate unreachable Edge and Fragment paths without changing the isolated final tests.", "مسیرهای Edge و Fragment که در دسترس نیستن، سریع کنار گذاشته می‌شن؛ تست‌های نهایی همچنان مستقل انجام می‌شن."),
         homeText(
-            "Equivalent routes share a batched Parvaz HTTP preflight. Failures are retried once; DNS and speed are not finalized here.",
-            "مسیرهای هم‌ارز، پیش‌آزمایش ${ltr("HTTP")} رو با یک اجرای گروهی پرواز انجام می‌دن. خطاها یک بار دوباره بررسی می‌شن و نتیجه ${ltr("DNS")} یا سرعت در این مرحله نهایی نیست.",
+            "Equivalent routes share a batched Xray HTTP preflight. Failures are retried once; DNS and speed are not finalized here.",
+            "مسیرهای هم‌ارز، پیش‌آزمایش ${ltr("HTTP")} رو با یک اجرای گروهی Xray انجام می‌دن. خطاها یک بار دوباره بررسی می‌شن و نتیجه ${ltr("DNS")} یا سرعت در این مرحله نهایی نیست.",
         ),
         homeText(
             "Up to 250 Edge, DNS and tuning families move to isolated HTTP, DNS, upload and download verification.",
@@ -1799,12 +1799,12 @@ private fun stageExplanation(stage: RouteTournamentStage): StageExplanation = wh
     )
     RouteTournamentStage.VERIFICATION -> StageExplanation(
         homeText("Compare every resolver independently without repeating MTUs that cannot affect proxy traffic.", "هر ${ltr("Resolver")} مستقل بررسی می‌شه، بدون تکرار ${ltr("MTU")}هایی که روی ترافیک Proxy اثری ندارن."),
-        homeText("A fresh isolated Parvaz route checks HTTP, DNS, real upload and download, latency and jitter.", "یک مسیر تازه و مستقل پرواز، ${ltr("HTTP")}، ${ltr("DNS")}، آپلود و دانلود واقعی، تأخیر و نوسان رو می‌سنجه."),
+        homeText("A fresh isolated Xray route checks HTTP, DNS, real upload and download, latency and jitter.", "یک مسیر تازه و مستقل Xray، ${ltr("HTTP")}، ${ltr("DNS")}، آپلود و دانلود واقعی، تأخیر و نوسان رو می‌سنجه."),
         homeText("The best 24 diverse route families are expanded into four real native MTUs.", "۲۴ خانواده برتر و متنوع، برای چهار ${ltr("MTU")} واقعی باز می‌شن."),
     )
     RouteTournamentStage.MTU_VALIDATION -> StageExplanation(
         homeText("Measure MTU on the real Android TUN path instead of pretending proxy-only MTUs are different.", "${ltr("MTU")} روی مسیر واقعی ${ltr("TUN")} اندروید سنجیده می‌شه؛ نه روی مسیر Proxy که ${ltr("MTU")} در اون اثری نداره."),
-        homeText("An app-only native VPN checks HTTP, DNS, upload, download and actual Parvaz TX/RX growth for every MTU.", "یک ${ltr("VPN")} آزمایشی فقط برای خود برنامه، ${ltr("HTTP")}، ${ltr("DNS")}، آپلود، دانلود و رشد واقعی ${ltr("TX/RX")} در پرواز رو بررسی می‌کنه."),
+        homeText("An app-only native VPN checks HTTP, DNS, upload, download and actual Xray TX/RX growth for every MTU.", "یک ${ltr("VPN")} آزمایشی فقط برای خود برنامه، ${ltr("HTTP")}، ${ltr("DNS")}، آپلود، دانلود و رشد واقعی ${ltr("TX/RX")} در Xray رو بررسی می‌کنه."),
         homeText("If native MTU fails, routes that passed Resolver verification still advance to stability on the SOCKS path.", "اگر ${ltr("MTU")} واقعی رد بشه، مسیرهایی که در بررسی ${ltr("Resolver")} قبول شدن با همون مسیر ${ltr("SOCKS")} به پایداری می‌رن."),
     )
     RouteTournamentStage.STABILITY -> StageExplanation(

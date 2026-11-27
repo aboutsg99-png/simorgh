@@ -17,12 +17,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.ListAlt
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.BatteryChargingFull
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Dns
+import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Route
@@ -51,7 +53,8 @@ import com.uacspoofer.mobile.ui.DrawerDestination
 internal fun ProfileTab(onOpenLegacy: (DrawerDestination) -> Unit, onOpenPage: (ShellPage) -> Unit, contentPadding: PaddingValues) {
     val context = LocalContext.current
     val sx = LocalSx.current
-    val power by remember(context) { PowerMode.flow(context) }.collectAsStateWithLifecycle(PowerMode.current(context))
+    val powerFlow = remember(context) { PowerMode.flow(context) }
+    val power by powerFlow.collectAsStateWithLifecycle(remember(context) { PowerMode.current(context) })
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item(key = "t") { ScreenTitle("پروفایل") }
         item(key = "battery-t") { SectionTitle("حالت باتری") }
@@ -81,6 +84,8 @@ internal fun ProfileTab(onOpenLegacy: (DrawerDestination) -> Unit, onOpenPage: (
                 DividerLine()
                 MenuRow(Icons.Outlined.Settings, "تنظیمات", "اتصال، شبکه، امنیت و ابزارها") { onOpenLegacy(DrawerDestination.SETTINGS) }
                 DividerLine()
+                MenuRow(Icons.Outlined.Public, "سرورها، کانفیگ‌ها و اشتراک‌ها", "افزودن از کلیپ‌بورد، فایل یا QR؛ ورود به Firefox VPN") { onOpenPage(ShellPage.SERVERS) }
+                DividerLine()
                 MenuRow(Icons.Outlined.Dns, "کانفیگ‌ها و کشورهای موتور فعلی", "مدیریت کامل کانفیگ‌ها یا کشورهای موتور") { onOpenLegacy(DrawerDestination.CONFIGS) }
                 DividerLine()
                 MenuRow(Icons.Outlined.Apps, "برنامه‌های خارج از تونل", "انتخاب برنامه‌هایی که از وی‌پی‌ان رد نشوند") { onOpenLegacy(DrawerDestination.APP_BYPASS) }
@@ -95,7 +100,7 @@ internal fun ProfileTab(onOpenLegacy: (DrawerDestination) -> Unit, onOpenPage: (
                     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://browserleaks.com/ip")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                 }
                 DividerLine()
-                MenuRow(Icons.Outlined.Route, "تست مسیر پرواز", "یافتن بهترین مسیر برای کانفیگ انتخاب‌شده") { onOpenLegacy(DrawerDestination.ROUTE_SPEED_TEST) }
+                MenuRow(Icons.Outlined.Route, "تست مسیر Xray", "یافتن بهترین مسیر برای کانفیگ انتخاب‌شده") { onOpenLegacy(DrawerDestination.ROUTE_SPEED_TEST) }
                 DividerLine()
                 MenuRow(Icons.Outlined.Build, "سازنده SNI", "ساخت و آزمایش SNI") { onOpenLegacy(DrawerDestination.SNI_MAKER) }
                 DividerLine()
@@ -105,9 +110,13 @@ internal fun ProfileTab(onOpenLegacy: (DrawerDestination) -> Unit, onOpenPage: (
         item(key = "about-t") { SectionTitle("درباره") }
         item(key = "about") {
             Column(Modifier.fillMaxWidth().sxCard(sx)) {
-                MenuRow(Icons.Outlined.SupportAgent, "پشتیبانی و به‌روزرسانی", "تلگرام، بررسی نسخه‌ی جدید، مجوزها") { onOpenLegacy(DrawerDestination.SUPPORT) }
+                AppIdentityRow()
                 DividerLine()
-                MenuRow(Icons.Outlined.Info, "سیمرغ ${BuildConfig.VERSION_NAME}", "داده‌ی نقشه: Natural Earth (مالکیت عمومی)") { onOpenLegacy(DrawerDestination.SUPPORT) }
+                MenuRow(Icons.AutoMirrored.Outlined.Send, "کانال رسمی تلگرام", "$SIMORGH_TELEGRAM_HANDLE · t.me/theacproject") { openTelegramChannel(context) }
+                DividerLine()
+                MenuRow(Icons.Outlined.SupportAgent, "پشتیبانی و به‌روزرسانی", "بررسی نسخه‌ی جدید، مجوزها") { onOpenLegacy(DrawerDestination.SUPPORT) }
+                DividerLine()
+                MenuRow(Icons.Outlined.Info, "Simorgh ${BuildConfig.VERSION_NAME}", "داده‌ی نقشه: Natural Earth (مالکیت عمومی) · متن‌باز AGPL-3.0") { onOpenLegacy(DrawerDestination.SUPPORT) }
             }
         }
     }
@@ -123,6 +132,23 @@ fun MenuRow(icon: ImageVector, title: String, subtitle: String, onClick: () -> U
             SText(title, size = 15.sp, weight = FontWeight.SemiBold)
             SText(subtitle, size = 12.sp, color = sx.textDim)
         }
-        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, null, tint = sx.textFaint)
+        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = sx.textFaint)
+    }
+}
+
+/** App name + logo, shown at the top of the about section. */
+@Composable
+internal fun AppIdentityRow() {
+    val sx = LocalSx.current
+    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.foundation.Image(
+            androidx.compose.ui.res.painterResource(com.uacspoofer.mobile.R.mipmap.ic_launcher_round), null,
+            Modifier.size(48.dp).clip(androidx.compose.foundation.shape.CircleShape),
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            SText("سیمرغ", size = 18.sp, weight = FontWeight.Bold)
+            SText("Simorgh VPN · نسخه‌ی ${BuildConfig.VERSION_NAME}", size = 12.5.sp, color = sx.textDim, ltr = false)
+        }
     }
 }

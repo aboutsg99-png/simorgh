@@ -391,8 +391,8 @@ internal fun AppTitle(compact: Boolean, accent: Color) {
     ) {
         Text(
             text = when {
-                engineMode.isTor -> "SIMORGH SAYEH BRIDGE"
-                engineMode.isPow -> "Shahpar"
+                engineMode.isTor -> "SIMORGH TOR BRIDGE"
+                engineMode.isPow -> "Psiphon/WARP"
                 engineMode.isDirect -> "TIR"
                 engineMode.isFoxy -> "RUBAH"
                 else -> "SIMORGH"
@@ -1159,8 +1159,8 @@ internal fun ConnectionStatus(state: ConnectionState, accent: Color) {
             ),
         )
         engineMode.isDirect -> homeText(
-            "Starting Tir ${directStatus.progressPercent}%",
-            "در حال راه‌اندازی تیر ${directStatus.progressPercent}٪",
+            "Starting Direct ${directStatus.progressPercent}%",
+            "در حال راه‌اندازی Direct ${directStatus.progressPercent}٪",
         )
         else -> when {
             showRouteProgress && routeProgress.isActive -> homeText(
@@ -1180,24 +1180,24 @@ internal fun ConnectionStatus(state: ConnectionState, accent: Color) {
         ConnectionState.CONNECTING -> connectingHint
         ConnectionState.CONNECTED -> when {
             engineMode.isTor -> if (advanced.connectionMode == CONNECTION_MODE_PROXY) {
-                homeText("Local Sayeh SOCKS only · no device VPN", "فقط SOCKS محلی سایه · بدون VPN دستگاه")
+                homeText("Local Tor SOCKS only · no device VPN", "فقط SOCKS محلی Tor · بدون VPN دستگاه")
             } else {
-                homeText("Device VPN is routing through Sayeh", "VPN دستگاه از سایه می‌گذره")
+                homeText("Device VPN is routing through Tor", "VPN دستگاه از Tor می‌گذره")
             }
             engineMode.isPow -> if (advanced.connectionMode == CONNECTION_MODE_PROXY) {
-                homeText("Local Shahpar SOCKS only · no device VPN", "فقط SOCKS محلی شاهپر · بدون VPN دستگاه")
+                homeText("Local Psiphon/WARP SOCKS only · no device VPN", "فقط SOCKS محلی Psiphon/WARP · بدون VPN دستگاه")
             } else {
-                homeText("Device VPN is routing through Shahpar", "VPN دستگاه از شاهپر می‌گذره")
+                homeText("Device VPN is routing through Psiphon/WARP", "VPN دستگاه از Psiphon/WARP می‌گذره")
             }
             engineMode.isDirect && directStatus.usingWireGuard -> homeText(
-                "Connected · Tir",
-                "اتصال برقرار است · تیر",
+                "Connected · Direct",
+                "اتصال برقرار است · Direct",
             )
             engineMode.isDirect -> if (advanced.connectionMode == CONNECTION_MODE_PROXY) {
                 homeText("Local SOCKS only · no device VPN", "فقط SOCKS محلی · بدون VPN دستگاه")
             } else {
                 homeText(
-                    "Tir, no server · IP-blocked sites stay unreachable",
+                    "Direct, no server · IP-blocked sites stay unreachable",
                     "مستقیم و بدون سرور · سایت‌هایی که IPشون بسته‌ست باز نمی‌شن",
                 )
             }
@@ -1683,7 +1683,7 @@ private fun scanLabel(body: String): PowStepCopy {
 
 private fun psiphonRoute(label: String): String = when {
     label.startsWith("domain-fronted") -> "Abr · CDN"
-    label.startsWith("direct through Nur") -> "Abr · NUR"
+    label.startsWith("direct through Nur") -> "Abr · WARP"
     else -> label
 }
 
@@ -1712,14 +1712,14 @@ private fun stageLabel(text: String, persian: Boolean): PowStepCopy {
         }
     }
     return when {
-        text.startsWith("Starting Shahpar") -> PowStepCopy("راه‌اندازی شاهپر")
+        text.startsWith("Starting Shahpar") -> PowStepCopy("راه‌اندازی Psiphon/WARP")
         text.startsWith("Reconnecting for country") -> PowStepCopy("اتصال دوباره برای کشور انتخاب‌شده", lastWord(text))
         text.startsWith("Connecting MASQUE") -> PowStepCopy("اتصال به MASQUE")
         text.startsWith("Connecting WireGuard") -> PowStepCopy("اتصال به WireGuard")
         text.startsWith("Connecting WoW") -> PowStepCopy("اتصال به WARP-in-WARP")
         text.startsWith("Starting Abr directly") -> PowStepCopy("راه‌اندازی تونل امن", "Psiphon")
         text.startsWith("Starting Abr through") ->
-            PowStepCopy("راه‌اندازی تونل امن", "Abr · " + text.removePrefix("Starting Abr through ").trim())
+            PowStepCopy("راه‌اندازی تونل امن", "Psiphon · " + text.removePrefix("Starting Abr through ").trim())
         text.startsWith("Starting Abr") -> PowStepCopy("راه‌اندازی تونل امن")
         text.startsWith("Trying UDP/1701") -> PowStepCopy("امتحان UDP/1701")
         text.startsWith("Trying saved clean address") -> PowStepCopy("امتحان آی‌پی ذخیره‌شده", lastWord(text))

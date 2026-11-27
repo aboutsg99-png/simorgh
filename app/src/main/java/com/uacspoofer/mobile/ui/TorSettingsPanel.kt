@@ -119,7 +119,7 @@ private fun TorSettingsPanel() {
             PowMenuChoice(
                 "auto",
                 homeText("Automatic", "خودکار"),
-                homeText("Sayeh picks any exit.", "سایه خودش هر خروجی‌ای را انتخاب می‌کند."),
+                homeText("Tor picks any exit.", "Tor خودش هر خروجی‌ای را انتخاب می‌کند."),
             ),
         )
         add(
@@ -153,8 +153,8 @@ private fun TorSettingsPanel() {
             TorEngineSettings.FRAGMENT_AUTO,
             homeText("Auto", "خودکار"),
             homeText(
-                "Splits the Pol ClientHello; turns itself off if the bridge plugin refuses.",
-                "ClientHello پل پل تکه می‌شود؛ اگر افزونه پل قبول نکند خودش خاموش می‌شود.",
+                "Splits the WebTunnel ClientHello; turns itself off if the bridge plugin refuses.",
+                "ClientHello در WebTunnel تکه می‌شود؛ اگر افزونه WebTunnel قبول نکند خودش خاموش می‌شود.",
             ),
         ),
         PowMenuChoice(
@@ -213,13 +213,13 @@ private fun TorSettingsPanel() {
             if (!torBinaryReady) {
                 TorNotice(
                     homeText(
-                        "Sayeh runtime is not bundled. Connect fails until libtor.so is present.",
-                        "موتور سایه در این نسخه نیست؛ تا libtor.so نباشد اتصال برقرار نمی‌شود.",
+                        "Tor runtime is not bundled. Connect fails until libtor.so is present.",
+                        "موتور Tor در این نسخه نیست؛ تا libtor.so نباشد اتصال برقرار نمی‌شود.",
                     ),
                 )
             }
             if (!pluginReady) {
-                TorNotice(homeText("Pol plugin is missing (libwebtunnel.so).", "افزونه پل (libwebtunnel.so) پیدا نشد."))
+                TorNotice(homeText("WebTunnel plugin is missing (libwebtunnel.so).", "افزونه WebTunnel (libwebtunnel.so) پیدا نشد."))
             }
             TorLiveFlowButton(accent = accent, onClick = { flowVisible = true })
             TorLiveFlowDialog(visible = flowVisible, onDismissRequest = { flowVisible = false })
@@ -235,7 +235,7 @@ private fun TorSettingsPanel() {
                 PowPickerRow(
                     icon = Icons.Outlined.Public,
                     label = homeText("Exit", "خروجی"),
-                    sheetTitle = homeText("Sayeh exit", "خروجی سایه"),
+                    sheetTitle = homeText("Tor exit", "خروجی Tor"),
                     choices = exitChoices,
                     selectedId = exitId,
                     accent = accent,
@@ -286,7 +286,7 @@ private fun TorSettingsPanel() {
                 PowSwitchRow(
                     icon = Icons.Outlined.CloudDownload,
                     title = homeText("Daily bridge refresh", "تازه‌سازی روزانه پل‌ها"),
-                    subtitle = homeText("Once a day, fetched through Sayeh itself", "روزی یک بار پل‌های تازه می‌گیره"),
+                    subtitle = homeText("Once a day, fetched through Tor itself", "روزی یک بار پل‌های تازه می‌گیره"),
                     checked = settings.bridgeRefresh,
                     accent = accent,
                     onCheckedChange = { store.save(settings.copy(bridgeRefresh = it)) },
@@ -294,7 +294,7 @@ private fun TorSettingsPanel() {
                 if (settings.bridgeRefresh) {
                     Column(modifier = Modifier.padding(horizontal = PowPad, vertical = 6.dp)) {
                         TorMiniField(
-                            label = homeText("Bridge list URL (empty = Sayeh Moat)", "آدرس فهرست پل (خالی = Moat تور)"),
+                            label = homeText("Bridge list URL (empty = Tor Moat)", "آدرس فهرست پل (خالی = Moat تور)"),
                             value = settings.bridgeRefreshUrl,
                             onChange = { store.save(settings.copy(bridgeRefreshUrl = it)) },
                             keyboardType = KeyboardType.Uri,
@@ -313,8 +313,8 @@ private fun TorSettingsPanel() {
             ) {
                 PowPickerRow(
                     icon = Icons.Outlined.Shield,
-                    label = homeText("Pol fragment", "تکه‌کردن پل"),
-                    sheetTitle = homeText("Split the Pol ClientHello", "تکه‌کردن ClientHello پل پل"),
+                    label = homeText("WebTunnel fragment", "تکه‌کردن WebTunnel"),
+                    sheetTitle = homeText("Split the WebTunnel ClientHello", "تکه‌کردن ClientHello در WebTunnel"),
                     choices = fragments,
                     selectedId = settings.fragmentMode,
                     accent = accent,
@@ -391,7 +391,7 @@ private fun TorSettingsPanel() {
                 PowSwitchRow(
                     icon = Icons.Outlined.Bolt,
                     title = homeText("Fast relays", "رله‌های پرسرعت"),
-                    subtitle = homeText("Middle hops from highest-bandwidth relays", "از سرورهای پرسرعت‌تر سایه استفاده می‌کنه"),
+                    subtitle = homeText("Middle hops from highest-bandwidth relays", "از سرورهای پرسرعت‌تر Tor استفاده می‌کنه"),
                     checked = settings.fastRelays,
                     accent = accent,
                     onCheckedChange = { store.save(settings.copy(fastRelays = it)) },
@@ -427,7 +427,7 @@ private fun TorSettingsPanel() {
                 PowPickerRow(
                     icon = Icons.Outlined.Hub,
                     label = homeText("Tunnel MTU", "MTU تونل"),
-                    sheetTitle = homeText("Sayeh tunnel MTU", "MTU تونل سایه"),
+                    sheetTitle = homeText("Tor tunnel MTU", "MTU تونل Tor"),
                     choices = mtus,
                     selectedId = settings.tunMtu.toString(),
                     accent = accent,
@@ -446,7 +446,7 @@ private fun TorSettingsPanel() {
                 PowSwitchRow(
                     icon = Icons.AutoMirrored.Outlined.AltRoute,
                     title = homeText("Swap bridges without restart", "تعویض پل بدون ری‌استارت"),
-                    subtitle = homeText("One Sayeh process; next batch via control port", "عوض کردن پل بدون قطع و وصل کامل"),
+                    subtitle = homeText("One Tor process; next batch via control port", "عوض کردن پل بدون قطع و وصل کامل"),
                     checked = settings.singleProcess,
                     accent = accent,
                     onCheckedChange = { store.save(settings.copy(singleProcess = it)) },
@@ -464,7 +464,7 @@ private fun TorSettingsPanel() {
                 PowSwitchRow(
                     icon = Icons.Outlined.Block,
                     title = homeText("Block UDP", "مسدود کردن UDP"),
-                    subtitle = homeText("Sayeh has no UDP; apps fall back to TCP faster", "سایه از UDP پشتیبانی نمی‌کنه؛ برنامه‌ها زودتر از TCP استفاده می‌کنن"),
+                    subtitle = homeText("Tor has no UDP; apps fall back to TCP faster", "Tor از UDP پشتیبانی نمی‌کنه؛ برنامه‌ها زودتر از TCP استفاده می‌کنن"),
                     checked = settings.blockUdp,
                     accent = accent,
                     onCheckedChange = { store.save(settings.copy(blockUdp = it)) },
@@ -480,7 +480,7 @@ private fun TorSettingsPanel() {
                 PowSwitchRow(
                     icon = Icons.Outlined.BugReport,
                     title = homeText("Logs to logcat", "لاگ در logcat"),
-                    subtitle = homeText("Read Sayeh logs over adb (tag SMG-TOR)", "برای عیب‌یابی با کامپیوتر (adb)"),
+                    subtitle = homeText("Read Tor logs over adb (tag SMG-TOR)", "برای عیب‌یابی با کامپیوتر (adb)"),
                     checked = settings.logcatMirror,
                     accent = accent,
                     onCheckedChange = { store.save(settings.copy(logcatMirror = it)) },

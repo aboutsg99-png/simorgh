@@ -1,34 +1,50 @@
 package com.uacspoofer.mobile.ui.shell
 
 import android.content.Context
+import android.graphics.Bitmap
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.asAndroidPath
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import java.io.DataInputStream
+import androidx.compose.ui.unit.IntSize
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
@@ -39,7 +55,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-/** One country in Web-Mercator units (x = lon in radians, y = mercator y, north up = larger y). */
+/** One country in Web-Mercator units (x = lon in radians, y = -mercator y so north is up on screen). */
 class MapCountry(
     val iso: String,
     val path: Path,
@@ -49,17 +65,22 @@ class MapCountry(
 )
 
 @Immutable
-class WorldMapData(val countries: Map<String, MapCountry>)
+class WorldMapData(val countries: Map<String, MapCountry>) {
+    /** Draw order without the map's hash order, so bitmaps are deterministic. */
+    val list: List<MapCountry> = countries.values.sortedBy { it.iso }
+}
 
 /**
  * Natural Earth 1:50m admin-0 (public domain), simplified and packed by
- * scripts/gen_world_map.py into assets/map/world50.bin. Parsed once on a background
- * thread; each country becomes one cached Path in mercator units and is drawn through a
- * transform, so camera moves never rebuild geometry.
+ * scripts/gen_world_map.py into assets/map/world50.bin. Parsed once, off the main thread;
+ * each country is one Path in mercator units drawn through a transform, so camera moves
+ * never rebuild geometry.
  */
 object WorldMapStore {
     private val lock = Mutex()
     @Volatile private var data: WorldMapData? = null
+
+    fun cached(): WorldMapData? = data
 
     suspend fun load(context: Context): WorldMapData? {
         data?.let { return it }
@@ -130,34 +151,68 @@ object WorldMapStore {
     }
 }
 
+/** How much the map may move. Chosen from the power mode (see [mapMotionFor]). */
+enum class MapMotion {
+    /** BALANCED: smooth pan to the exit country and a pulsing exit dot. */
+    FULL,
+    /** SAVER: one-shot pan only, no infinite animation. */
+    PAN_ONLY,
+    /** ULTRA: static map, no animation at all. */
+    STATIC,
+}
+
+fun mapMotionFor(anim: AnimLevel, enabled: Boolean = true): MapMotion = if (!enabled) MapMotion.STATIC else when (anim) {
+    AnimLevel.FULL -> MapMotion.FULL
+    AnimLevel.REDUCED -> MapMotion.PAN_ONLY
+    AnimLevel.OFF -> MapMotion.STATIC
+}
+
 @Immutable
 data class MapView(
+    /** Country the camera centres on (exit when connected, else the user's own country). */
     val focus: String,
+    /** The user's own country (for the "from" end of the route line). */
     val home: String = "",
+    /** Connected: draw the exit dot (and a route line when home differs). */
     val connected: Boolean = false,
-    val animate: Boolean = true,
 )
 
+private data class Camera(val cx: Float, val cy: Float, val scale: Float)
+
+private data class RasterKey(val camera: Camera, val size: IntSize, val sea: Color, val land: Color, val border: Color)
+
 /**
- * The map: focused (fitted) on [MapView.focus], neighbours dark with borders, the focus
- * country filled with the accent. When connected and the user's own country is known,
- * shows a "me" dot and an arc to the server country; the camera then fits both.
+ * The home map card's map. Rendering rules (all draw-phase, no recomposition per frame):
+ * - The settled map is rasterised once per camera on a background thread into a bitmap and
+ *   drawn with a single drawImage; scrolling or pulsing never re-strokes 240 country paths.
+ * - While a pan runs (FULL / PAN_ONLY, one shot, ~700 ms) countries are drawn as cached
+ *   vector fills through a transform, culled to the viewport.
+ * - The exit dot pulse is an infinite animation only in FULL mode and only while [active]
+ *   (home tab shown, screen on/resumed, list not scrolling); it lives in its own layer.
  */
 @Composable
-fun WorldMapCanvas(view: MapView, modifier: Modifier = Modifier) {
+fun WorldMapCanvas(
+    view: MapView,
+    motion: MapMotion,
+    active: Boolean,
+    modifier: Modifier = Modifier,
+    dotColor: Color = Color(0xFFB9D43A),
+) {
     val context = LocalContext.current
     val sx = LocalSx.current
-    val data by produceState<WorldMapData?>(null, context) { value = WorldMapStore.load(context) }
-    BoxWithConstraints(modifier) {
-        val w = constraints.maxWidth.toFloat().coerceAtLeast(1f)
-        val h = constraints.maxHeight.toFloat().coerceAtLeast(1f)
-        val map = data ?: return@BoxWithConstraints
+    val data by produceState(WorldMapStore.cached(), context) { if (value == null) value = WorldMapStore.load(context) }
+    var size by remember { mutableStateOf(IntSize.Zero) }
+    Box(modifier.onSizeChanged { size = it }) {
+        val map = data ?: return@Box
+        if (size.width <= 0 || size.height <= 0) return@Box
+        val w = size.width.toFloat()
+        val h = size.height.toFloat()
         val target = remember(map, view.focus, view.home, view.connected, w, h) { cameraFor(map, view, w, h) }
         val cx = remember { Animatable(target.cx) }
         val cy = remember { Animatable(target.cy) }
         val scale = remember { Animatable(target.scale) }
-        LaunchedEffect(target, view.animate) {
-            if (!view.animate) {
+        LaunchedEffect(target, motion) {
+            if (motion == MapMotion.STATIC) {
                 cx.snapTo(target.cx); cy.snapTo(target.cy); scale.snapTo(target.scale)
             } else {
                 val spec = tween<Float>(720, easing = FastOutSlowInEasing)
@@ -166,71 +221,135 @@ fun WorldMapCanvas(view: MapView, modifier: Modifier = Modifier) {
                 launch { scale.animateTo(target.scale, spec) }
             }
         }
-        val land = if (sx.light) Color(0xFFD5DEE9) else Color(0xFF233149)
-        val border = if (sx.light) Color(0xFFFFFFFF) else Color(0xFF34445F)
-        val focusFill = sx.accent.copy(alpha = 0.78f)
-        val dash = remember { PathEffect.dashPathEffect(floatArrayOf(14f, 12f)) }
+        val sea = sx.mapSea
+        val land = sx.mapLand
+        val border = sx.mapBorder
+        // Settled frame, rasterised off the main thread.
+        // produceState keeps its last value across key changes, so the frame carries its own key:
+        // a bitmap from the previous skin or size is never drawn for the new one.
+        val frameKey = RasterKey(target, size, sea, land, border)
+        val settled by produceState<Pair<RasterKey, ImageBitmap>?>(null, map, frameKey) {
+            value = withContext(Dispatchers.Default) {
+                runCatching { frameKey to rasterise(map, target, size, sea, land, border) }.getOrNull()
+            }
+        }
         Canvas(Modifier.fillMaxSize()) {
             val s = scale.value
-            val ox = size.width / 2f - cx.value * s
-            val oy = size.height / 2f - cy.value * s
-            // Visible window in mercator units, for culling.
-            val vis = Rect(-ox / s, -oy / s, (size.width - ox) / s, (size.height - oy) / s)
-            val focus = map.countries[view.focus]
+            val x = cx.value
+            val y = cy.value
+            val frame = settled
+            if (frame != null && frame.first == frameKey && x == target.cx && y == target.cy && s == target.scale) {
+                drawImage(frame.second)
+                return@Canvas
+            }
+            // Moving (or the bitmap is not ready yet): cheap vector fills.
+            drawRect(sea)
+            val ox = this.size.width / 2f - x * s
+            val oy = this.size.height / 2f - y * s
+            val vis = Rect(-ox / s, -oy / s, (this.size.width - ox) / s, (this.size.height - oy) / s)
             withTransform({
                 translate(ox, oy)
                 scale(s, s, Offset.Zero)
             }) {
-                val hair = 1f / s
-                for (c in map.countries.values) {
-                    if (c === focus || !c.bounds.overlaps(vis)) continue
-                    drawPath(c.path, land)
-                    drawPath(c.path, border, style = Stroke(width = hair * 1.1f, join = StrokeJoin.Round))
-                }
-                if (focus != null) {
-                    drawPath(focus.path, sx.accent.copy(alpha = 0.22f), style = Stroke(width = hair * 7f, join = StrokeJoin.Round))
-                    drawPath(focus.path, focusFill)
-                    drawPath(focus.path, sx.accent, style = Stroke(width = hair * 1.8f, join = StrokeJoin.Round))
+                for (c in map.list) {
+                    if (c.bounds.overlaps(vis)) drawPath(c.path, land)
                 }
             }
-            fun toScreen(p: Offset) = Offset(p.x * s + ox, p.y * s + oy)
-            val server = focus?.label?.let(::toScreen)
-            val me = map.countries[view.home]?.takeIf { view.connected && view.home != view.focus }?.label?.let(::toScreen)
-            if (server != null && me != null) {
-                val mid = Offset((server.x + me.x) / 2f, min(server.y, me.y) - kotlin.math.abs(server.x - me.x) * 0.28f - 30f)
-                val arc = Path().apply {
-                    moveTo(me.x, me.y)
-                    quadraticBezierTo(mid.x, mid.y, server.x, server.y)
-                }
-                drawPath(arc, sx.accent, style = Stroke(width = 4f, cap = StrokeCap.Round, pathEffect = dash))
-                drawCircle(Color.White.copy(alpha = 0.18f), 22f, me)
-                drawCircle(Color(0xFF0B1220), 13f, me)
-                drawCircle(Color.White, 8f, me)
-            }
-            if (server != null) {
-                drawCircle(Color.White.copy(alpha = 0.22f), 30f, server)
-                drawCircle(Color(0xFF0B1220), 17f, server)
-                drawCircle(Color.White, 11f, server)
-            }
+        }
+        if (view.connected) {
+            ExitMarker(map, view, cx, cy, scale, pulse = motion == MapMotion.FULL && active, color = dotColor, line = sx.accent)
         }
     }
 }
 
-private data class Camera(val cx: Float, val cy: Float, val scale: Float)
+@Composable
+private fun ExitMarker(
+    map: WorldMapData,
+    view: MapView,
+    cx: Animatable<Float, AnimationVector1D>,
+    cy: Animatable<Float, AnimationVector1D>,
+    scale: Animatable<Float, AnimationVector1D>,
+    pulse: Boolean,
+    color: Color,
+    line: Color,
+) {
+    val server = map.countries[view.focus]?.label ?: return
+    val me = map.countries[view.home]?.label?.takeIf { view.home != view.focus }
+    // Pulse value lives in a State read only in the draw lambda below: no recomposition per frame.
+    val pulseState: State<Float> = if (pulse) {
+        val t = rememberInfiniteTransition(label = "map-pulse")
+        t.animateFloat(0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing), RepeatMode.Restart), label = "p")
+    } else {
+        remember { mutableStateOf(0.35f) }
+    }
+    val dash = remember { PathEffect.dashPathEffect(floatArrayOf(12f, 10f)) }
+    Box(
+        Modifier
+            .fillMaxSize()
+            .graphicsLayer() // own layer: pulse frames redraw only this
+            .drawWithCache {
+                val routePath = Path()
+                onDrawBehind {
+                    val s = scale.value
+                    val ox = size.width / 2f - cx.value * s
+                    val oy = size.height / 2f - cy.value * s
+                    val sv = Offset(server.x * s + ox, server.y * s + oy)
+                    if (me != null) {
+                        val mv = Offset(me.x * s + ox, me.y * s + oy)
+                        val mid = Offset((sv.x + mv.x) / 2f, min(sv.y, mv.y) - abs(sv.x - mv.x) * 0.25f - 20f)
+                        routePath.reset()
+                        routePath.moveTo(mv.x, mv.y)
+                        routePath.quadraticTo(mid.x, mid.y, sv.x, sv.y)
+                        drawPath(routePath, line.copy(alpha = 0.7f), style = Stroke(width = 3f, cap = StrokeCap.Round, pathEffect = dash))
+                        drawCircle(line, 6f, mv)
+                    }
+                    val p = pulseState.value
+                    val r = 13f * density
+                    drawCircle(color.copy(alpha = 0.22f * (1f - p)), r * (1f + 1.2f * p), sv)
+                    drawCircle(color.copy(alpha = 0.45f), r * 0.62f, sv)
+                    drawCircle(color, r * 0.36f, sv)
+                }
+            },
+    )
+}
 
+/** Renders the settled map once (background thread; android.graphics, no Compose state). */
+private fun rasterise(map: WorldMapData, cam: Camera, size: IntSize, sea: Color, land: Color, border: Color): ImageBitmap {
+    val bmp = Bitmap.createBitmap(size.width, size.height, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bmp)
+    canvas.drawColor(sea.toArgb())
+    val ox = size.width / 2f - cam.cx * cam.scale
+    val oy = size.height / 2f - cam.cy * cam.scale
+    val vis = Rect(-ox / cam.scale, -oy / cam.scale, (size.width - ox) / cam.scale, (size.height - oy) / cam.scale)
+    canvas.translate(ox, oy)
+    canvas.scale(cam.scale, cam.scale)
+    val fill = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        style = android.graphics.Paint.Style.FILL
+        color = land.toArgb()
+    }
+    val stroke = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        style = android.graphics.Paint.Style.STROKE
+        color = border.toArgb()
+        strokeJoin = android.graphics.Paint.Join.ROUND
+        strokeWidth = 1.6f / cam.scale
+    }
+    for (c in map.list) {
+        if (!c.bounds.overlaps(vis)) continue
+        val p = c.path.asAndroidPath()
+        canvas.drawPath(p, fill)
+        canvas.drawPath(p, stroke)
+    }
+    return bmp.asImageBitmap()
+}
+
+/** Fits the focus country with regional context; the focus sits left of centre (tooltip on the right). */
 private fun cameraFor(map: WorldMapData, view: MapView, w: Float, h: Float): Camera {
     val focus = map.countries[view.focus]
-    var rect = focus?.home ?: Rect(0.20f, -1.10f, 1.15f, -0.45f) // Europe / Middle East fallback
-    val home = map.countries[view.home]
-    if (view.connected && home != null && focus != null && view.home != view.focus) {
-        rect = Rect(min(rect.left, home.label.x), min(rect.top, home.label.y), max(rect.right, home.label.x), max(rect.bottom, home.label.y))
-    }
-    // Small countries still get regional context.
-    val minSpan = 0.16f
-    val spanX = max(rect.width, minSpan)
-    val spanY = max(rect.height, minSpan * 0.7f)
-    val pad = if (view.connected && home != null) 1.45f else 1.9f
-    val scale = min(w / (spanX * pad), h / (spanY * pad))
-    // The tooltip sits on the lower-left; nudge the focus up and right a little.
-    return Camera(rect.center.x - (w * 0.10f) / scale, rect.center.y + (h * 0.12f) / scale, scale)
+    val rect = focus?.home ?: Rect(0.20f, -1.10f, 1.15f, -0.45f) // Europe / Middle East fallback
+    val minSpan = 0.55f // ~30 degrees of longitude: neighbours stay visible, like ExpressVPN
+    val spanX = max(rect.width * 1.6f, minSpan)
+    val spanY = max(rect.height * 1.6f, minSpan * 0.5f)
+    val scale = min(w / spanX, h / spanY)
+    val anchor = focus?.label ?: rect.center
+    return Camera(anchor.x + (w * 0.20f) / scale, anchor.y + (h * 0.02f) / scale, scale)
 }

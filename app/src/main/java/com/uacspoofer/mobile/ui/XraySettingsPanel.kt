@@ -264,7 +264,7 @@ PowSwitchRow(
                     PowIconTile(Icons.Outlined.RestartAlt, UacColors.ErrorRed)
                     Column(modifier = Modifier.weight(1f)) {
                         Text(homeText("Restore defaults", "بازگشت به پیش‌فرض"), color = UacColors.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        Text(homeText("Every Parvaz setting goes back to the start.", "همه‌ی تنظیمات پرواز برمی‌گرده به حالت اول."), color = UacColors.TextSecondary, fontSize = 11.5.sp, maxLines = 2)
+                        Text(homeText("Every Xray setting goes back to the start.", "همه‌ی تنظیمات Xray برمی‌گرده به حالت اول."), color = UacColors.TextSecondary, fontSize = 11.5.sp, maxLines = 2)
                     }
                 }
             }
@@ -274,7 +274,7 @@ PowSwitchRow(
         AlertDialog(
             onDismissRequest = { resetDialog = false },
             title = { Text(homeText("Restore defaults?", "بازگشت به پیش‌فرض؟")) },
-            text = { Text(homeText("Every Parvaz setting goes back to the tested defaults.", "همه تنظیمات پرواز به مقادیر تست‌شده برمی‌گردند.")) },
+            text = { Text(homeText("Every Xray setting goes back to the tested defaults.", "همه تنظیمات Xray به مقادیر تست‌شده برمی‌گردند.")) },
             confirmButton = { TextButton({ store.resetDefaults(); resetDialog = false }) { Text(homeText("Restore", "بازگردانی"), color = UacColors.ErrorRed) } },
             dismissButton = { TextButton({ resetDialog = false }) { Text(homeText("Cancel", "انصراف")) } },
         )

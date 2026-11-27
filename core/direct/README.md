@@ -1,4 +1,4 @@
-# UAC Direct Core
+# Direct Core
 
 The Android Engine 4 transport builds as `libDirect.so`. Its JNI bridge is in
 `android/jni.cpp`. The transport keeps Engine 4's existing identities and

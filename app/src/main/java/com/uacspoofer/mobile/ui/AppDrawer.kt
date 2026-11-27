@@ -102,6 +102,12 @@ internal enum class DrawerDestination {
     TOR_SETTINGS,
     DIRECT_SETTINGS,
     SUPPORT,
+    // Pages for the extra engines (ui/engines).
+    WIREGUARD,
+    PROTON_SIGN_IN,
+    FLUX_SETTINGS,
+    CLEAN_IP_SCANNER,
+    GAME_DNS,
 }
 
 internal enum class DrawerLanguage {
@@ -134,6 +140,8 @@ private fun drawerItemsFor(mode: EngineMode): List<DrawerItem> = buildList {
     add(DrawerItem(DrawerDestination.HOME, "Home", Icons.Outlined.Home))
     if (mode.isTor || mode.isPow || mode.isFoxy) {
         add(DrawerItem(DrawerDestination.CONFIGS, "Select country", Icons.Outlined.Public))
+    } else if (mode.isWireGuard) {
+        add(DrawerItem(DrawerDestination.WIREGUARD, "WireGuard servers", Icons.Outlined.Public))
     } else if (mode.isDirect) {
         // Engine 4 has no configs or countries: it dials sites directly.
     } else {
@@ -146,12 +154,13 @@ private fun drawerItemsFor(mode: EngineMode): List<DrawerItem> = buildList {
     add(DrawerItem(DrawerDestination.BATTERY, "Battery Management", Icons.Outlined.BatteryChargingFull))
     add(DrawerItem(DrawerDestination.SETTINGS, "General settings", Icons.Outlined.Settings))
     when {
-        mode.isPow -> add(DrawerItem(DrawerDestination.POW_SETTINGS, "Shahpar settings", Icons.Outlined.Tune))
-        mode.isTor -> add(DrawerItem(DrawerDestination.TOR_SETTINGS, "Sayeh settings", Icons.Outlined.Tune))
-        mode.isDirect -> add(DrawerItem(DrawerDestination.DIRECT_SETTINGS, "Tir settings", Icons.Outlined.Tune))
+        mode.isPow -> add(DrawerItem(DrawerDestination.POW_SETTINGS, "Psiphon/WARP settings", Icons.Outlined.Tune))
+        mode.isTor -> add(DrawerItem(DrawerDestination.TOR_SETTINGS, "Tor settings", Icons.Outlined.Tune))
+        mode.isDirect -> add(DrawerItem(DrawerDestination.DIRECT_SETTINGS, "Direct settings", Icons.Outlined.Tune))
         // Rubah keeps account, servers and protocol on its own country page (CONFIGS).
         mode.isFoxy -> Unit
-        else -> add(DrawerItem(DrawerDestination.ADVANCED_SETTINGS, "Parvaz settings", Icons.Outlined.Tune))
+        mode.isWireGuard -> Unit
+        else -> add(DrawerItem(DrawerDestination.ADVANCED_SETTINGS, "Xray settings", Icons.Outlined.Tune))
     }
     // Support is always the last item, for every engine.
     add(DrawerItem(DrawerDestination.SUPPORT, "Support", Icons.Outlined.SupportAgent))
@@ -383,10 +392,10 @@ private fun DrawerHeader(compact: Boolean, engineMode: EngineMode) {
         Spacer(Modifier.height(if (compact) 4.dp else 9.dp))
         Text(
             text = when {
-                engineMode.isTor -> "SIMORGH SAYEH BRIDGE"
-                engineMode.isPow -> "Shahpar"
-                engineMode.isDirect -> "Tir"
-                engineMode.isFoxy -> "Rubah"
+                engineMode.isTor -> "SIMORGH TOR BRIDGE"
+                engineMode.isPow -> "Psiphon/WARP"
+                engineMode.isDirect -> "Direct"
+                engineMode.isFoxy -> "Firefox VPN"
                 else -> "Simorgh"
             },
             color = DrawerText,
@@ -513,11 +522,16 @@ private fun drawerLabel(item: DrawerItem, engineMode: EngineMode): String = home
                         DrawerDestination.APP_BYPASS -> "عبور انتخابی برنامه‌ها"
                         DrawerDestination.BATTERY -> "مدیریت مصرف باتری"
                         DrawerDestination.SETTINGS -> "تنظیمات کلی"
-                        DrawerDestination.ADVANCED_SETTINGS -> "تنظیمات پرواز"
-                        DrawerDestination.POW_SETTINGS -> "تنظیمات شاهپر"
-                        DrawerDestination.TOR_SETTINGS -> "تنظیمات سایه"
-                        DrawerDestination.DIRECT_SETTINGS -> "تنظیمات تیر"
+                        DrawerDestination.ADVANCED_SETTINGS -> "تنظیمات Xray"
+                        DrawerDestination.POW_SETTINGS -> "تنظیمات Psiphon/WARP"
+                        DrawerDestination.TOR_SETTINGS -> "تنظیمات Tor"
+                        DrawerDestination.DIRECT_SETTINGS -> "تنظیمات Direct"
                         DrawerDestination.SUPPORT -> "پشتیبانی"
+                        DrawerDestination.WIREGUARD -> "سرورهای WireGuard"
+                        DrawerDestination.PROTON_SIGN_IN -> "ورود به Proton VPN"
+                        DrawerDestination.FLUX_SETTINGS -> "Flux"
+                        DrawerDestination.CLEAN_IP_SCANNER -> "اسکنر آی‌پی تمیز"
+                        DrawerDestination.GAME_DNS -> "DNS بازی"
                     },
 )
 

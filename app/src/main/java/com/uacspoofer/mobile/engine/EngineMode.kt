@@ -9,20 +9,24 @@ enum class EngineMode(val id: String) {
     /** Engine 4: Direct, serverless direct DPI bypass on the bundled Xray core. */
     UAC_DIRECT("uac_direct"),
     /** Engine 5: Rubah, Mozilla's Firefox VPN with the user's own Firefox account (sing-box MASQUE). */
-    FOXY_FIREFOX("foxy_firefox");
+    FOXY_FIREFOX("foxy_firefox"),
+    /** Engine 6: WireGuard on Xray's userspace outbound (own configs, Proton VPN, Windscribe). */
+    WIREGUARD("wireguard");
 
     val isTor: Boolean get() = this == TOR_WEBTUNNEL
     val isXray: Boolean get() = this == XRAY_CF
     val isPow: Boolean get() = this == UAC_POW
     val isDirect: Boolean get() = this == UAC_DIRECT
     val isFoxy: Boolean get() = this == FOXY_FIREFOX
+    val isWireGuard: Boolean get() = this == WIREGUARD
 
     fun next(): EngineMode = when (this) {
         XRAY_CF -> TOR_WEBTUNNEL
         TOR_WEBTUNNEL -> UAC_POW
         UAC_POW -> UAC_DIRECT
         UAC_DIRECT -> FOXY_FIREFOX
-        FOXY_FIREFOX -> XRAY_CF
+        FOXY_FIREFOX -> WIREGUARD
+        WIREGUARD -> XRAY_CF
     }
 
     fun toggled(): EngineMode = next()

@@ -9,6 +9,18 @@ internal object TorTunRelayConfig {
     const val DEFAULT_TCP_BUFFER = 65_536
     const val BIG_TCP_BUFFER = 262_144
 
+    /**
+     * MTU of a TUN that hev-socks5-tunnel terminates locally (Tor, Rubah, WireGuard-via-Xray).
+     * Those packets never leave the phone as-is: hev rebuilds each TCP stream into the SOCKS
+     * connection, so the outer path MTU does not apply. 1500 instead of the app default 1280
+     * means ~17% fewer packets (and JNI reads/writes) per byte through the userspace stack;
+     * still the Ethernet size, so UDP datagrams forwarded through SOCKS stay unfragmented.
+     */
+    const val RELAY_MTU = 1_500
+
+    fun relayMtu(userChoice: Int? = null): Int =
+        userChoice?.takeIf { it in 1280..1500 } ?: RELAY_MTU
+
     fun yaml(
         mtu: Int,
         socksPort: Int,

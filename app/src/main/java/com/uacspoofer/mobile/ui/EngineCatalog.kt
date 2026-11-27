@@ -9,6 +9,7 @@ import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.NearMe
 import androidx.compose.material.icons.outlined.Pets
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -37,39 +38,39 @@ internal fun EngineInfo.subtitle(): String = homeText(subtitleEn, subtitleFa)
 
 internal object EngineCatalog {
     val Parvaz = EngineInfo(
-        key = "xray", latin = "Parvaz", persian = "پرواز",
+        key = "xray", latin = "Xray", persian = "Xray",
         subtitleEn = "Your configs and subscriptions", subtitleFa = "کانفیگ‌ها و لینک اشتراک خودت",
         icon = Icons.Outlined.FlightTakeoff, mode = EngineMode.XRAY_CF,
     )
     val Sayeh = EngineInfo(
-        key = "tor", latin = "Sayeh", persian = "سایه",
+        key = "tor", latin = "Tor", persian = "Tor",
         subtitleEn = "Layered route over bridges", subtitleFa = "مسیر چندلایه از روی پل‌ها",
         icon = Icons.Outlined.Layers, mode = EngineMode.TOR_WEBTUNNEL,
     )
     val Shahpar = EngineInfo(
-        key = "pow", latin = "Shahpar", persian = "شاهپر",
-        subtitleEn = "Chains Nur, Abr and Pol", subtitleFa = "زنجیره‌ی نور، ابر و پل",
+        key = "pow", latin = "Psiphon/WARP", persian = "Psiphon/WARP",
+        subtitleEn = "Chains WARP, Psiphon and WebTunnel", subtitleFa = "زنجیره‌ی WARP، Psiphon و WebTunnel",
         icon = Icons.Outlined.Shield, mode = EngineMode.UAC_POW,
     )
     val Tir = EngineInfo(
-        key = "direct", latin = "Tir", persian = "تیر",
+        key = "direct", latin = "Direct", persian = "Direct",
         subtitleEn = "Direct, no server", subtitleFa = "مستقیم، بدون سرور",
         icon = Icons.Outlined.NearMe, mode = EngineMode.UAC_DIRECT,
     )
 
     // Sub-engines shown inside Shahpar, Sayeh and the live route.
     val Nur = EngineInfo(
-        key = "warp", latin = "Nur", persian = "نور",
+        key = "warp", latin = "WARP", persian = "WARP",
         subtitleEn = "Fast cloud tunnel", subtitleFa = "تونل ابری سریع",
         icon = Icons.Outlined.WbSunny,
     )
     val Abr = EngineInfo(
-        key = "psiphon", latin = "Abr", persian = "ابر",
+        key = "psiphon", latin = "Psiphon", persian = "Psiphon",
         subtitleEn = "Wide, resilient network", subtitleFa = "شبکه‌ی گسترده و مقاوم",
         icon = Icons.Outlined.Cloud,
     )
     val Pol = EngineInfo(
-        key = "webtunnel", latin = "Pol", persian = "پل",
+        key = "webtunnel", latin = "WebTunnel", persian = "WebTunnel",
         subtitleEn = "Hidden web bridges", subtitleFa = "پل‌های پنهان وب",
         icon = Icons.Outlined.Link,
     )
@@ -81,13 +82,20 @@ internal object EngineCatalog {
 
     /** Engine 5: Firefox VPN with the user's own Firefox account; country page holds sign-in. */
     val Rubah = EngineInfo(
-        key = "foxy", latin = "Rubah", persian = "روباه",
+        key = "foxy", latin = "Firefox VPN", persian = "Firefox VPN",
         subtitleEn = "Firefox VPN", subtitleFa = "فایرفاکس وی‌پی‌ان",
         icon = Icons.Outlined.Pets, mode = EngineMode.FOXY_FIREFOX,
     )
 
+    /** Engine 6: WireGuard (own configs, Proton VPN, Windscribe) on Xray's userspace outbound. */
+    val WireGuard = EngineInfo(
+        key = "wireguard", latin = "WireGuard", persian = "WireGuard",
+        subtitleEn = "Your WireGuard, Proton VPN, Windscribe", subtitleFa = "کانفیگ WireGuard خودت، Proton VPN، Windscribe",
+        icon = Icons.Outlined.VpnKey, mode = EngineMode.WIREGUARD,
+    )
+
     /** Every known engine, in rail order. */
-    val all: List<EngineInfo> = listOf(Parvaz, Sayeh, Shahpar, Tir, Rubah)
+    val all: List<EngineInfo> = listOf(Parvaz, Sayeh, Shahpar, Tir, Rubah, WireGuard)
     val subEngines: List<EngineInfo> = listOf(Nur, Abr, Pol, Auto)
 
     /** Engines that can be picked on the home rail: one per shipped [EngineMode]. */

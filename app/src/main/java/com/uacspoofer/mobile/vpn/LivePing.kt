@@ -77,6 +77,11 @@ internal object LivePing {
             } else {
                 com.uacspoofer.mobile.engine.foxy.FoxyEngineStore.get(context).snapshot().socksPort
             }
+            engine.isWireGuard -> "127.0.0.1" to if (proxy) {
+                advanced.socksPort
+            } else {
+                com.uacspoofer.mobile.engine.wireguard.WgStatusStore.socksPort.takeIf { it > 0 } ?: advanced.socksPort
+            }
             else -> advanced.socksAddress.ifBlank { "127.0.0.1" } to advanced.socksPort
         }
     }

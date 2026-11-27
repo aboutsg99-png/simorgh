@@ -260,8 +260,8 @@ internal fun TorCountryScreen(onMenuClick: () -> Unit) {
                                 TorCountryRow(
                                     title = homeText("Automatic", "خودکار"),
                                     subtitle = homeText(
-                                        "Sayeh picks the best available exit",
-                                        "شبکه سایه بهترین خروجی در دسترس را انتخاب می‌کند",
+                                        "Tor picks the best available exit",
+                                        "شبکه Tor بهترین خروجی در دسترس را انتخاب می‌کند",
                                     ),
                                     country = null,
                                     selected = selectedCode.isEmpty(),
@@ -526,7 +526,7 @@ private fun CountryBadge(country: CountryMetadata?, selected: Boolean) {
 @Composable
 private fun countrySubtitle(code: String): String {
     val iso = code.uppercase(Locale.US)
-    return homeText("$iso  •  Sayeh exit", "$iso  •  خروجی سایه")
+    return homeText("$iso  •  Tor exit", "$iso  •  خروجی Tor")
 }
 
 @Composable

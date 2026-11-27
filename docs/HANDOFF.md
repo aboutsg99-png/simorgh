@@ -53,9 +53,11 @@ This file is enough to continue from the repository alone. No secrets are kept h
 
 ## Engines (display names)
 
-Parvaz (Xray, configs/subscriptions), Sayeh (Tor + WebTunnel), Shahpar (PoW: Nur = WARP,
-Abr = Psiphon, Pol = WebTunnel), Tir (Direct), Rubah (Firefox VPN with the user's own Firefox
-account, MASQUE via sing-box), Auto (orchestrates the others).
+The UI shows real names only: Xray (configs/subscriptions), Tor + WebTunnel, Cloudflare WARP /
+Psiphon / Psiphon + WARP (the PoW engine by exit mode), Direct, Firefox VPN (user's own Firefox
+account, MASQUE via sing-box), WireGuard (own configs, Proton VPN, Windscribe), Auto. The old
+codenames (Parvaz, Sayeh, Shahpar, Nur, Abr, Pol, Tir, Rubah) survive only in code identifiers,
+comments and engine-emitted status keys matched by PowStatusCopy/HomeComponents.
 
 ## Design references
 
@@ -72,3 +74,26 @@ See the bottom of this file (kept current by whoever works on it).
 - Green: 905c197, main run 45291329648 (build + shots both green). APK Simorgh-1.0.2-arm64-v8a.apk 86,603,328 bytes, signer SHA-256 98:4C:1B:C8:…:ED:C8:3D:32 (CN=Simorgh), v2+v3 signed, contains lib/arm64-v8a/libfoxybox.so; versionName 1.0.2 / versionCode 3. Artifact shell-shots = 9 Robolectric PNGs (1200x4800).
 - No tag or GitHub Release for 1.0.2 yet (CI publishes the APK to the apk-builds branch on main pushes).
 - Not device-tested: new shell UI, world map, fastest servers, speed test (Ookla/Shatel), auto engine, power modes, notification/country-label fixes.
+
+### 2026-11-27: `integration` branch (local only, not pushed)
+- Worktree /workspace/work/simorgh-int, branch `integration` from main e324db1:
+  merge perf-ui (a262ba8, 83e1c73) -> merge engines (4ee7579; Outline WIP left out, it was
+  uncommitted) -> merge speed (8003cf4, b047daf, 97fb064) plus fix commits.
+- Conflicts: EnginesScreen.kt (perf-ui's EngineChoice list + Auto chain card kept, engines'
+  EngineToolsCard added, WireGuard row + settings route), ShellFormat.kt (real names via
+  engineDisplayName, WireGuard icon/description), FastestRepository.kt (real-name tag + speed's
+  cached Firefox VPN pings). SelectionActions, AutoConnector, UacVpnService, MainScreen,
+  EngineCatalog and AppDrawer merged cleanly.
+- Green locally: :app:compileDebugKotlin and full :app:testDebugUnitTest, 548 tests, 0 failures.
+  The 6 earlier failures were all pre-existing at e324db1 (stale tests or the TorStatusCopy
+  key bug) and are fixed: PowEngineIsolationTest, AiCleanHopTest, TorRcWriterTest,
+  TorStatusCopyTest x2, ConnectionStateMachineTest.
+- Bug sweep fixes: Game DNS FGS-timeout crash; Auto replacing Game DNS; WireGuard select crash on
+  unreadable Keystore file; stuck busy flags (Game DNS race, WG ping test, Proton sync); RTL
+  back/forward arrows inverted in the shell; stale map raster after a skin switch; per-second
+  home recomposition while disconnected; codenames on every legacy page, the notification and
+  the home widget; TorDaemon mojibake.
+- Still open (see the integration report): Game DNS VpnService intent-filter competes with the
+  main service for always-on VPN; WgTunnelStore does Keystore file I/O on the main thread;
+  home shows "not protected" while Game DNS is on; ProtonVpn.signedIn() read during
+  composition; device testing of everything above.

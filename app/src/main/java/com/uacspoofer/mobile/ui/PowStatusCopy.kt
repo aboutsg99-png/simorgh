@@ -34,7 +34,7 @@ internal object PowStatusCopy {
             PowPhase.OUTER -> "Connecting..."
             PowPhase.INNER -> "Starting secure tunnel..."
             PowPhase.BRIDGING -> "Almost ready..."
-            else -> "Connecting Shahpar..."
+            else -> "Connecting Psiphon/WARP..."
         }
     }
 
@@ -57,8 +57,8 @@ internal object PowStatusCopy {
             trimmed.startsWith("Starting Abr") -> "دارم تونل امن رو روشن می‌کنم"
             trimmed.startsWith("Trying") -> "نشد، دارم راه بعدی رو امتحان می‌کنم"
             trimmed.startsWith("Routing device") -> "دارم اینترنت گوشیت رو وصل می‌کنم"
-            trimmed.startsWith("Shahpar ready") -> "شاهپر وصله، برو حالشو ببر"
-            trimmed.startsWith("Starting Shahpar") -> "دارم شاهپر رو روشن می‌کنم"
+            trimmed.startsWith("Shahpar ready") -> "Psiphon/WARP وصله، برو حالشو ببر"
+            trimmed.startsWith("Starting Shahpar") -> "دارم Psiphon/WARP رو روشن می‌کنم"
             trimmed.startsWith("Creating device") -> "دارم ${homeLtr("VPN")} گوشیت رو می‌سازم"
             trimmed.startsWith("SIM changed") -> "سیم‌کارت عوض شد؛ دارم دوباره وصل می‌کنم…"
             trimmed.startsWith("Reconnecting after") -> "دارم دوباره وصل میشم..."
@@ -66,9 +66,9 @@ internal object PowStatusCopy {
             trimmed.isNotEmpty() -> homeLtr(trimmed)
             phase == PowPhase.OUTER -> "دارم وصل میشم..."
             phase == PowPhase.INNER -> "یه لحظه، دارم تونل رو راه میندازم..."
-            percent in 1..99 -> "شاهپر $percent% ..."
-            showRouteProgress -> "دارم شاهپر رو روشن می‌کنم..."
-            else -> "دارم شاهپر رو روشن می‌کنم..."
+            percent in 1..99 -> "Psiphon/WARP $percent% ..."
+            showRouteProgress -> "دارم Psiphon/WARP رو روشن می‌کنم..."
+            else -> "دارم Psiphon/WARP رو روشن می‌کنم..."
         }
     }
 }

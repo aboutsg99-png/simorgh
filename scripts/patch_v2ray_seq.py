@@ -1,6 +1,6 @@
 """Patch libv2ray Seq.<clinit> to call GoJniLoader.load() instead of loadLibrary("gojni").
 
-gomobile always hardcodes System.loadLibrary("gojni"). UAC PoW loads Psiphon's
+gomobile always hardcodes System.loadLibrary("gojni"). PoW engine loads Psiphon's
 runtime as libgopsi.so in :uacpow, so Seq must pick the library from the process name.
 """
 from __future__ import annotations

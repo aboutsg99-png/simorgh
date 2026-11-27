@@ -231,7 +231,9 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.robolectric:robolectric:4.14.1")
+    // Local screenshot runs on aarch64 Linux pass -ProbolectricVersion=4.18.1 (its native
+    // graphics runtime has a linux/aarch64 build); CI keeps 4.14.1 and its seeded android-all jar.
+    testImplementation("org.robolectric:robolectric:" + (providers.gradleProperty("robolectricVersion").orNull ?: "4.14.1"))
     testImplementation("io.github.takahirom.roborazzi:roborazzi:1.40.1")
     testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.40.1")
     testImplementation("androidx.compose.ui:ui-test-junit4")
@@ -304,7 +306,8 @@ tasks.withType<Test>().configureEach {
     // Shell screenshots (Robolectric). NATIVE graphics needs x86_64 (CI); elsewhere composition
     // still runs in LEGACY mode, which catches crashes but renders nothing useful.
     val arm = System.getProperty("os.arch").orEmpty().contains("aarch64")
-    systemProperty("robolectric.graphicsMode", if (arm) "LEGACY" else "NATIVE")
+    val armNative = providers.gradleProperty("robolectricVersion").isPresent
+    systemProperty("robolectric.graphicsMode", if (arm && !armNative) "LEGACY" else "NATIVE")
     // Without the Roborazzi Gradle plugin, captureRoboImage only writes PNGs in record mode.
     systemProperty("roborazzi.test.record", "true")
     // CI seeds the android-all jar into ~/.m2 (with curl retries), so Robolectric finds it locally.

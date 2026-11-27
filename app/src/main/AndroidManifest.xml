@@ -73,6 +73,20 @@
             </intent-filter>
         </service>
 
+        <!-- Game DNS: a VPN that carries only DNS (engine/gamedns). Same permission as the tunnel. -->
+        <service
+            android:name=".engine.gamedns.GameDnsVpnService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Simorgh DNS-only VPN for games" />
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
         <service
             android:name=".engine.pow.PowPsiphonService"
             android:exported="false"

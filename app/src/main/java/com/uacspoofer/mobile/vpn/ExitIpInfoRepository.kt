@@ -167,6 +167,12 @@ class ExitIpInfoRepository private constructor(context: Context) {
         }
     }
     private fun fetchJson(url: String, proxy: Proxy, timeoutMs: Int): String {
+        // Through the tunnel with remote DNS: HttpURLConnection would resolve the host locally.
+        TunnelHttp.socksOf(proxy)?.let { socks ->
+            val payload = TunnelHttp.get(url, socks.hostString, socks.port, timeoutMs, MAX_RESPONSE_BYTES)
+            check(payload.isNotBlank()) { "Empty response" }
+            return payload
+        }
         val connection = URL(url).openConnection(proxy) as HttpsURLConnection
         return try {
             connection.requestMethod = "GET"

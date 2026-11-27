@@ -147,10 +147,10 @@ internal fun FoxySettingsPanel(
             }
         }
         Spacer(Modifier.height(4.dp))
-        Text(homeText("If Rubah is weak, switch to", "اگر روباه ضعیف بود، برو سراغ"), color = UacColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(homeText("If Firefox VPN is weak, switch to", "اگر Firefox VPN ضعیف بود، برو سراغ"), color = UacColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            FoxyChip(homeText("Parvaz", "پرواز"), settings.fallback == FoxyFallback.PARVAZ) { onFallback(FoxyFallback.PARVAZ) }
-            FoxyChip(homeText("Shahpar", "شاهپر"), settings.fallback == FoxyFallback.SHAHPAR) { onFallback(FoxyFallback.SHAHPAR) }
+            FoxyChip(homeText("Xray", "Xray"), settings.fallback == FoxyFallback.PARVAZ) { onFallback(FoxyFallback.PARVAZ) }
+            FoxyChip(homeText("Psiphon/WARP", "Psiphon/WARP"), settings.fallback == FoxyFallback.SHAHPAR) { onFallback(FoxyFallback.SHAHPAR) }
             FoxyChip(homeText("Don't switch", "عوض نکن"), settings.fallback == FoxyFallback.NONE) { onFallback(FoxyFallback.NONE) }
         }
         if (status.phase != FoxyPhase.IDLE && status.detail.isNotBlank()) {

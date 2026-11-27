@@ -20,6 +20,10 @@ object VpnController {
     /** Starts the service with whatever engine is selected right now. */
     fun startEngine(context: Context) {
         if (!com.uacspoofer.mobile.security.IntegrityGuard.isTrusted(context)) return
+        // One VPN at a time: the tunnel replaces Game DNS mode.
+        if (com.uacspoofer.mobile.engine.gamedns.GameDnsVpnService.running.value != null) {
+            com.uacspoofer.mobile.engine.gamedns.GameDnsVpnService.stop(context)
+        }
         val intent = Intent(context, UacVpnService::class.java).setAction(UacVpnService.ACTION_CONNECT)
         ContextCompat.startForegroundService(context, intent)
     }

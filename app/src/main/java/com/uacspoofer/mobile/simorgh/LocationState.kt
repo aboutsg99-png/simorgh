@@ -147,8 +147,21 @@ private fun <T> CoroutineScope.launchCollect(flow: kotlinx.coroutines.flow.Flow<
 
 /** Country name in Persian (or English), from the platform's CLDR data. */
 fun countryName(code: String?, persian: Boolean = true): String {
-    val iso = code?.trim()?.uppercase(Locale.ROOT).orEmpty()
-    if (iso.length != 2) return ""
-    val name = Locale("", iso).getDisplayCountry(if (persian) Locale("fa") else Locale.ENGLISH).trim()
-    return if (name.isEmpty() || name.equals(iso, ignoreCase = true)) iso else name
+    if (code.isNullOrEmpty()) return ""
+    val cache = if (persian) countryNamesFa else countryNamesEn
+    cache[code]?.let { return it }
+    val iso = code.trim().uppercase(Locale.ROOT)
+    val name = if (iso.length != 2) {
+        ""
+    } else {
+        // ICU display-name lookups are slow enough to show up in list scrolling; cache them.
+        Locale("", iso).getDisplayCountry(if (persian) PERSIAN else Locale.ENGLISH).trim()
+            .let { if (it.isEmpty() || it.equals(iso, ignoreCase = true)) iso else it }
+    }
+    cache[code] = name
+    return name
 }
+
+private val PERSIAN = Locale("fa")
+private val countryNamesFa = java.util.concurrent.ConcurrentHashMap<String, String>()
+private val countryNamesEn = java.util.concurrent.ConcurrentHashMap<String, String>()

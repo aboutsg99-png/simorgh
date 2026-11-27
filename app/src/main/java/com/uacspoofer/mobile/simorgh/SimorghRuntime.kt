@@ -50,6 +50,10 @@ object SimorghRuntime {
         if (started) return
         started = true
         val app = context.applicationContext
+        ConnectionStateStore.installWatchdog(
+            serviceAlive = { ServiceProbe.vpnServiceAlive(app) },
+            autoRunning = { com.uacspoofer.mobile.simorgh.auto.AutoConnector.running() },
+        )
         scope.launch {
             runCatching { ExitIpChecker.loadHome(app) }
             LocationState.start(app, scope)

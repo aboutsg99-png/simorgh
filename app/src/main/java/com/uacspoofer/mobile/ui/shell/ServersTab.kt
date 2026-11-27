@@ -134,7 +134,7 @@ internal fun ServersTab(state: ConnectionState, onConnect: () -> Unit, onOpenLeg
     var tab by rememberSaveable { mutableStateOf(ServerTab.FAST) }
     var query by rememberSaveable { mutableStateOf("") }
     var engineFilter by rememberSaveable { mutableStateOf<String?>(null) }
-    var favourites by remember { mutableStateOf(Favourites.read(context)) }
+    var favourites by remember { mutableStateOf<Set<String>>(emptySet()) }
     var expanded by remember { mutableStateOf<String?>(null) }
     var signingIn by rememberSaveable { mutableStateOf(false) }
     var signBusy by remember { mutableStateOf(false) }
@@ -148,6 +148,7 @@ internal fun ServersTab(state: ConnectionState, onConnect: () -> Unit, onOpenLeg
     fun reloadSubs() { scope.launch { subs = withContext(Dispatchers.IO) { runCatching { SubscriptionStore(context).all() }.getOrDefault(emptyList()) } } }
 
     LaunchedEffect(Unit) {
+        favourites = withContext(Dispatchers.IO) { Favourites.read(context) }
         FastestRepository.loadCached(context)
         reloadSubs()
         if (runCatching { account.hasStoredSession() }.getOrDefault(false)) runCatching { account.refreshStatus() }
@@ -203,7 +204,10 @@ internal fun ServersTab(state: ConnectionState, onConnect: () -> Unit, onOpenLeg
         }
     }
 
-    val groups = remember(fastest.rows, engineFilter) { buildGroups(context, fastest.rows, engineFilter) }
+    // Grouping/sorting hundreds of rows (with country-name lookups) runs off the main thread.
+    val groups by androidx.compose.runtime.produceState(emptyList<CountryGroup>(), fastest.rows, engineFilter) {
+        value = withContext(Dispatchers.Default) { buildGroups(context, fastest.rows, engineFilter) }
+    }
     val q = query.trim()
     fun matches(code: String, extra: String = "") = q.isEmpty() || countryName(code).contains(q, true) ||
         countryName(code, false).contains(q, true) || code.equals(q, true) || extra.contains(q, true)
@@ -217,7 +221,7 @@ internal fun ServersTab(state: ConnectionState, onConnect: () -> Unit, onOpenLeg
     Box(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item(key = "title") {
-                ScreenTitle("سرورها") {
+                ScreenTitle("سرورها و کانفیگ‌ها") {
                     RoundIconButton(Icons.Outlined.QrCodeScanner, { qrLauncher.launch("image/*") })
                     Box {
                         RoundIconButton(Icons.Outlined.Add, { menuOpen = true })
@@ -650,7 +654,7 @@ private fun ConfigRow(row: FastRow, active: Boolean, onMore: () -> Unit, onClick
         Column(Modifier.weight(1f)) {
             SText(row.title, size = 14.5.sp, weight = FontWeight.Bold)
             SText(
-                listOf(countryName(row.countryCode), "موتور پرواز", if (row.source == RowSource.SUBSCRIPTION) row.tag.removeSuffix(" (پرواز)") else "").filter { it.isNotEmpty() }.joinToString(" · "),
+                listOf(countryName(row.countryCode), "Xray", if (row.source == RowSource.SUBSCRIPTION) row.tag.removeSuffix(" · Xray") else "").filter { it.isNotEmpty() }.joinToString(" · "),
                 size = 12.sp, color = sx.textDim,
             )
         }

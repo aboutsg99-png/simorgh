@@ -199,7 +199,7 @@ private fun LeakStatusCard(signal: LeakSignal, primaryId: String?) {
         )
         LeakSignal.NATIVE_GROWTH -> Triple(
             homeText("Possible native leak", "احتمال نشت حافظه نیتیو"),
-            homeText("Native heap is climbing. Sayeh/Parvaz buffers can cause this.", "حافظه نیتیو بالا می‌رود. بافر سایه یا پرواز هم می‌تواند این را بسازد."),
+            homeText("Native heap is climbing. Tor/Xray buffers can cause this.", "حافظه نیتیو بالا می‌رود. بافر Tor یا Xray هم می‌تواند این را بسازد."),
             UacColors.DisconnectingAmber,
         )
         LeakSignal.BOTH -> Triple(
@@ -319,10 +319,10 @@ private fun LeakSourceCard(snapshot: RuntimeSnapshot?, accent: Color) {
 }
 
 private fun suspectEnglishName(id: String): String = when {
-    id == "tor" -> "Sayeh engine (libtor)"
-    id == "webtunnel" -> "Pol plugin"
-    id == "tun2socks" -> "Sayeh TUN pipe (hev)"
-    id == "xray" -> "Parvaz / libv2ray"
+    id == "tor" -> "Tor engine (libtor)"
+    id == "webtunnel" -> "WebTunnel plugin"
+    id == "tun2socks" -> "Tor TUN pipe (hev)"
+    id == "xray" -> "Xray / libv2ray"
     id == "java_heap" -> "Java heap"
     id == "native_heap" -> "Native heap"
     id == "graphics" -> "UI / graphics"
@@ -338,10 +338,10 @@ private fun suspectEnglishName(id: String): String = when {
 }
 
 private fun suspectPersianName(id: String): String = when {
-    id == "tor" -> "موتور سایه (${homeLtr("libtor")})"
+    id == "tor" -> "موتور Tor (${homeLtr("libtor")})"
     id == "webtunnel" -> "پلاگین پل"
     id == "tun2socks" -> "لوله ${homeLtr("TUN")} تور"
-    id == "xray" -> "پرواز / ${homeLtr("libv2ray")}"
+    id == "xray" -> "Xray / ${homeLtr("libv2ray")}"
     id == "java_heap" -> "هیپ جاوا"
     id == "native_heap" -> "هیپ نیتیو"
     id == "graphics" -> "رابط کاربری / گرافیک"
@@ -357,9 +357,9 @@ private fun suspectPersianName(id: String): String = when {
 }
 
 private fun suspectEnglishNote(id: String): String = when (id) {
-    "tor" -> "JNI Sayeh daemon"
+    "tor" -> "JNI Tor daemon"
     "webtunnel" -> "pluggable transport"
-    "tun2socks" -> "device traffic to Sayeh SOCKS"
+    "tun2socks" -> "device traffic to Tor SOCKS"
     "xray" -> "TUN / SOCKS core"
     "java_heap" -> "Kotlin / Compose objects"
     "graphics" -> "Compose, Fresco, GPU buffers"

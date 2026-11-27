@@ -49,7 +49,9 @@ class TorRcWriterTest {
             webtunnelPlugin = null,
             bridges = emptyList(),
         )
-        assertTrue(rc.contains("SocksPort 127.0.0.1:19050"))
+        // The daemon listens on the split port; DomesticSocksSplit owns the public 19050.
+        assertTrue(rc.contains("SocksPort 127.0.0.1:${TorEngineSettings.DEFAULT.daemonSocksPort}"))
+        assertFalse(rc.contains("SocksPort 127.0.0.1:19050\n"))
         assertTrue(rc.contains("IsolateDestAddr"))
         assertTrue(rc.contains("LearnCircuitBuildTimeout 1"))
         assertTrue(rc.contains("ControlPort 127.0.0.1:19051"))

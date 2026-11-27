@@ -575,7 +575,7 @@ class TorDaemon(context: Context) {
                                 phase = if (percent >= 100) TorPhase.CONNECTED else TorPhase.BOOTSTRAPPING,
                                 bootstrapPercent = percent,
                                 detail = if (percent >= 100) {
-                                    "Tor circuit is ready Â· SOCKS 127.0.0.1:${settings.socksPort}"
+                                    "Tor circuit is ready · SOCKS 127.0.0.1:${settings.socksPort}"
                                 } else {
                                     "Bootstrapping Tor $percent%"
                                 },
@@ -604,7 +604,7 @@ class TorDaemon(context: Context) {
                             phase = if (controlPercent >= 100) TorPhase.CONNECTED else TorPhase.BOOTSTRAPPING,
                             bootstrapPercent = controlPercent,
                             detail = if (controlPercent >= 100) {
-                                "Tor circuit is ready Â· SOCKS 127.0.0.1:${settings.socksPort}"
+                                "Tor circuit is ready · SOCKS 127.0.0.1:${settings.socksPort}"
                             } else {
                                 "Bootstrapping Tor $controlPercent%"
                             },

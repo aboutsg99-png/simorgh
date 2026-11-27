@@ -1,14 +1,31 @@
 package com.uacspoofer.mobile.ui.shell
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
+import androidx.core.view.WindowCompat
+import com.uacspoofer.mobile.core.PowerControl
+import com.uacspoofer.mobile.core.TapDebouncer
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,10 +44,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PowerSettingsNew
-import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
@@ -46,8 +61,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -67,22 +80,27 @@ import com.uacspoofer.mobile.update.UpdateUiState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-enum class ShellPage { PERSONALIZE, ENGINES }
+enum class ShellPage { PERSONALIZE, ENGINES, LOCATIONS, SERVERS }
 
-private data class NavItem(val label: String, val icon: ImageVector)
+private data class NavItem(val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
 
 private val NAV = listOf(
-    NavItem("VPN", Icons.Outlined.PowerSettingsNew),
-    NavItem("سرورها", Icons.Outlined.Public),
-    NavItem("تست سرعت", Icons.Outlined.Speed),
-    NavItem("راهنما", Icons.Outlined.HelpOutline),
-    NavItem("پروفایل", Icons.Outlined.Person),
+    NavItem("VPN", Icons.Outlined.PowerSettingsNew, Icons.Filled.PowerSettingsNew),
+    NavItem("موتورها", Icons.Outlined.StarOutline, Icons.Filled.Star),
+    NavItem("تست سرعت", Icons.Outlined.Speed, Icons.Filled.Speed),
+    NavItem("راهنما", Icons.AutoMirrored.Outlined.HelpOutline, Icons.AutoMirrored.Filled.HelpOutline),
+    NavItem("پروفایل", Icons.Outlined.Person, Icons.Filled.Person),
 )
 
+private const val TAB_HOME = 0
+private const val TAB_ENGINES = 1
+
 /**
- * 1.0.2 app shell: five tabs with a floating pill bar. Only the visible tab is composed
- * (state of the others is kept by a SaveableStateHolder). Engine settings, configs, logs
- * and the rest of the existing pages open full screen through the existing MainScreen.
+ * App shell, ExpressVPN layout: five tabs (VPN, engines, speed test, guide, profile) with a
+ * flat bottom bar. Only the visible tab is composed; the others keep their state in a
+ * SaveableStateHolder. Tabs switch instantly (no cross-fade: composing two heavy tabs at
+ * once was a visible hitch). The location picker and personalisation open as pages over the
+ * tabs; engine settings, configs, logs and the rest still open through the old MainScreen.
  */
 @Composable
 internal fun SimorghShell(
@@ -94,16 +112,20 @@ internal fun SimorghShell(
     onCloseApp: () -> Unit,
 ) {
     var legacy by rememberSaveable { mutableStateOf<String?>(null) }
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var tab by rememberSaveable { mutableIntStateOf(TAB_HOME) }
     var page by rememberSaveable { mutableStateOf<ShellPage?>(null) }
     UpdateCheckOnStart()
 
     val auto by AutoConnector.progress.collectAsStateWithLifecycle()
-    val shown = if (auto.active && state != ConnectionState.CONNECTED && state != ConnectionState.DISCONNECTING) ConnectionState.CONNECTING else state
-    val onPrimary: () -> Unit = when (shown) {
-        ConnectionState.CONNECTED, ConnectionState.CONNECTING -> onDisconnect
-        ConnectionState.DISCONNECTING -> ({})
-        else -> onConnect
+    val shown = shownState(state, auto.active)
+    // One clear action per state, and one action per tap: double taps and taps that land
+    // while the previous one is still being handled are dropped.
+    val gate = remember { TapDebouncer() }
+    val latestShown by rememberUpdatedState(shown)
+    val latestConnect by rememberUpdatedState(onConnect)
+    val latestDisconnect by rememberUpdatedState(onDisconnect)
+    val onPrimary: () -> Unit = remember {
+        { PowerControl.dispatchTap(latestShown, gate, { latestConnect() }, { latestDisconnect() }); Unit }
     }
 
     val legacyDest = legacy?.let { name -> DrawerDestination.entries.firstOrNull { it.name == name } }
@@ -121,14 +143,19 @@ internal fun SimorghShell(
         )
         return
     }
-    val openLegacy: (DrawerDestination) -> Unit = { legacy = it.name }
+    val openLegacy: (DrawerDestination) -> Unit = remember { { legacy = it.name } }
+    val openPage: (ShellPage) -> Unit = remember {
+        { p -> if (p == ShellPage.ENGINES) { page = null; tab = TAB_ENGINES } else page = p }
+    }
+    val closePage: () -> Unit = remember { { page = null } }
 
     SimorghShellTheme {
         val sx = LocalSx.current
+        SystemBarsFor(sx.light)
         var backArmed by remember { mutableStateOf(false) }
         BackHandler(enabled = page != null) { page = null }
-        BackHandler(enabled = page == null && tab != 0) { tab = 0 }
-        BackHandler(enabled = page == null && tab == 0) {
+        BackHandler(enabled = page == null && tab != TAB_HOME) { tab = TAB_HOME }
+        BackHandler(enabled = page == null && tab == TAB_HOME) {
             if (state == ConnectionState.CONNECTED) {
                 onMinimize()
             } else if (backArmed) {
@@ -145,63 +172,64 @@ internal fun SimorghShell(
         }
         val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        val content = PaddingValues(start = 18.dp, end = 18.dp, top = top + 8.dp, bottom = bottom + 104.dp)
-        Box(
-            Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(sx.bgTop, sx.bgBottom))),
-        ) {
+        val navHeight = 72.dp
+        val content = remember(top, bottom) { PaddingValues(start = 16.dp, end = 16.dp, top = top + 8.dp, bottom = bottom + navHeight + 16.dp) }
+        // Home draws its hero under the status bar itself.
+        val homePadding = remember(bottom) { PaddingValues(bottom = bottom + navHeight + 16.dp) }
+        Box(Modifier.fillMaxSize().background(sx.bgTop)) {
             val holder = rememberSaveableStateHolder()
-            val dur = if (sx.anim == AnimLevel.OFF) 0 else 200
-            AnimatedContent(
-                targetState = tab,
-                transitionSpec = { fadeIn(tween(dur)) togetherWith fadeOut(tween(dur / 2)) },
-                label = "tabs",
-            ) { t ->
-                holder.SaveableStateProvider(t) {
-                    when (t) {
-                        0 -> HomeTab(
-                            state = shown,
-                            onPrimary = onPrimary,
-                            onConnect = onConnect,
-                            onOpenServers = { tab = 1 },
-                            onOpenPersonalize = { page = ShellPage.PERSONALIZE },
-                            onOpenSettings = { openLegacy(DrawerDestination.SETTINGS) },
-                            onOpenEngines = { page = ShellPage.ENGINES },
-                            contentPadding = content,
-                        )
-                        1 -> ServersTab(state = shown, onConnect = onConnect, onOpenLegacy = openLegacy, contentPadding = content)
-                        2 -> SpeedTab(contentPadding = content)
-                        3 -> GuideTab(onOpenLegacy = openLegacy, onOpenEngines = { page = ShellPage.ENGINES }, contentPadding = content)
-                        else -> ProfileTab(
-                            onOpenLegacy = openLegacy,
-                            onOpenPage = { page = it },
-                            contentPadding = content,
-                        )
-                    }
+            holder.SaveableStateProvider(tab) {
+                when (tab) {
+                    TAB_HOME -> HomeTab(
+                        state = shown,
+                        onPrimary = onPrimary,
+                        onConnect = onConnect,
+                        onOpenLocations = { page = ShellPage.LOCATIONS },
+                        onOpenEngines = { tab = TAB_ENGINES },
+                        contentPadding = homePadding,
+                        topInset = top,
+                    )
+                    TAB_ENGINES -> EnginesScreen(onBack = { tab = TAB_HOME }, onOpenLegacy = openLegacy, contentPadding = content)
+                    2 -> SpeedTab(contentPadding = content)
+                    3 -> GuideTab(onOpenLegacy = openLegacy, onOpenEngines = { tab = TAB_ENGINES }, contentPadding = content)
+                    else -> ProfileTab(onOpenLegacy = openLegacy, onOpenPage = openPage, contentPadding = content)
                 }
             }
+            val pageDur = if (sx.anim == AnimLevel.OFF) 0 else 220
             AnimatedVisibility(
                 visible = page != null,
-                enter = slideInHorizontally(tween(if (dur == 0) 0 else 240)) { -it / 3 } + fadeIn(tween(dur)),
-                exit = slideOutHorizontally(tween(if (dur == 0) 0 else 200)) { -it / 3 } + fadeOut(tween(dur)),
+                enter = slideInHorizontally(tween(pageDur)) { -it / 4 } + fadeIn(tween(pageDur)),
+                exit = slideOutHorizontally(tween(pageDur)) { -it / 4 } + fadeOut(tween(pageDur)),
                 modifier = Modifier.zIndex(5f),
             ) {
-                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(sx.bgTop, sx.bgBottom)))) {
-                    val pagePadding = PaddingValues(start = 18.dp, end = 18.dp, top = top + 8.dp, bottom = bottom + 24.dp)
-                    when (page) {
-                        ShellPage.PERSONALIZE -> PersonalizeScreen(onBack = { page = null }, contentPadding = pagePadding)
-                        ShellPage.ENGINES -> EnginesScreen(onBack = { page = null }, onOpenLegacy = openLegacy, contentPadding = pagePadding)
-                        null -> Unit
+                // Keep showing the page that is animating out.
+                var shownPage by remember { mutableStateOf(page) }
+                if (page != null) shownPage = page
+                Box(Modifier.fillMaxSize().background(sx.bgTop)) {
+                    val pagePadding = PaddingValues(start = 16.dp, end = 16.dp, top = top + 8.dp, bottom = bottom + 24.dp)
+                    when (shownPage) {
+                        ShellPage.PERSONALIZE -> PersonalizeScreen(onBack = closePage, contentPadding = pagePadding)
+                        ShellPage.LOCATIONS -> LocationsScreen(
+                            state = shown,
+                            onBack = closePage,
+                            onConnect = onConnect,
+                            onManage = { page = ShellPage.SERVERS },
+                            topInset = top,
+                            bottomInset = bottom,
+                        )
+                        ShellPage.SERVERS -> ServersTab(state = shown, onConnect = onConnect, onOpenLegacy = openLegacy, contentPadding = pagePadding)
+                        ShellPage.ENGINES, null -> Unit
                     }
                 }
             }
             if (page == null) {
-                FloatingNav(tab, { tab = it }, Modifier.align(Alignment.BottomCenter).padding(bottom = bottom + 12.dp, start = 16.dp, end = 16.dp))
+                BottomNav(tab, { tab = it }, Modifier.align(Alignment.BottomCenter), bottom, navHeight)
             }
             AnimatedVisibility(
                 visible = backArmed,
                 enter = fadeIn(tween(150)),
                 exit = fadeOut(tween(150)),
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = bottom + 100.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = bottom + navHeight + 16.dp),
             ) {
                 Box(Modifier.clip(RoundedCornerShape(14.dp)).background(sx.surfaceHigh).padding(horizontal = 16.dp, vertical = 10.dp)) {
                     SText("برای خروج، دوباره «بازگشت» را بزنید", size = 13.sp)
@@ -211,34 +239,57 @@ internal fun SimorghShell(
     }
 }
 
+/** While Auto walks its list the service is briefly stopped between engines: keep showing CONNECTING. */
+internal fun shownState(state: ConnectionState, autoActive: Boolean): ConnectionState = PowerControl.shownState(state, autoActive)
+
+/** Dark status/nav bar icons on the light theme, light icons on dark. */
 @Composable
-private fun FloatingNav(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+private fun SystemBarsFor(light: Boolean) {
+    val view = LocalView.current
+    if (view.isInEditMode) return
+    SideEffect {
+        val window = (view.context as? android.app.Activity)?.window ?: return@SideEffect
+        val controller = WindowCompat.getInsetsController(window, view)
+        controller.isAppearanceLightStatusBars = light
+        controller.isAppearanceLightNavigationBars = light
+    }
+}
+
+@Composable
+private fun BottomNav(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier, bottomInset: Dp, height: Dp) {
     val sx = LocalSx.current
-    Row(
-        modifier
-            .fillMaxWidth()
-            .shadow(16.dp, RoundedCornerShape(32.dp), clip = false)
-            .clip(RoundedCornerShape(32.dp))
-            .background(if (sx.light) sx.surface.copy(alpha = 0.97f) else sx.bgBottom.copy(alpha = 0.94f))
-            .padding(6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        NAV.forEachIndexed { i, item ->
-            val on = i == selected
-            Column(
-                Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(if (on) sx.accent.copy(alpha = 0.16f) else androidx.compose.ui.graphics.Color.Transparent)
-                    .sxClick { onSelect(i) }
-                    .padding(vertical = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Icon(item.icon, item.label, tint = if (on) sx.accent else sx.textDim, modifier = Modifier.size(24.dp))
-                Spacer(Modifier.height(2.dp))
-                SText(item.label, size = 11.5.sp, weight = if (on) FontWeight.Bold else FontWeight.Medium, color = if (on) sx.accent else sx.textDim)
+    Column(modifier.fillMaxWidth().background(sx.nav)) {
+        Box(Modifier.fillMaxWidth().height(1.dp).background(sx.stroke))
+        Row(
+            Modifier.fillMaxWidth().height(height).padding(horizontal = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            NAV.forEachIndexed { i, item ->
+                val on = i == selected
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable(interactionSource = null, indication = null) { onSelect(i) }
+                        .semantics { this.selected = on },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (on) sx.accent.copy(alpha = 0.14f) else Color.Transparent)
+                            .padding(horizontal = 18.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(if (on) item.selectedIcon else item.icon, null, tint = if (on) sx.text else sx.textDim, modifier = Modifier.size(24.dp))
+                    }
+                    Spacer(Modifier.height(3.dp))
+                    SText(item.label, size = 11.5.sp, weight = if (on) FontWeight.Bold else FontWeight.Medium, color = if (on) sx.text else sx.textDim)
+                }
             }
         }
+        Spacer(Modifier.height(bottomInset))
     }
 }
 

@@ -5,6 +5,8 @@ HSPLcom/uacspoofer/mobile/ui/MainActivity;->**(**)**
 HSPLcom/uacspoofer/mobile/ui/shell/**;->**(**)**
 HSPLcom/uacspoofer/mobile/simorgh/**;->**(**)**
 HSPLcom/uacspoofer/mobile/core/**;->**(**)**
+HSPLcom/uacspoofer/mobile/profiles/ProfileStore;->**(**)**
+HSPLcom/uacspoofer/mobile/profiles/ProfileUriParser;->**(**)**
 HSPLcom/uacspoofer/mobile/ui/theme/**;->**(**)**
 HSPLandroidx/compose/runtime/**;->**(**)**
 HSPLandroidx/compose/ui/**;->**(**)**

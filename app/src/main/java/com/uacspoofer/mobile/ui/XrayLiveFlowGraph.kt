@@ -165,7 +165,7 @@ internal fun XrayLiveFlowButton(accent: Color, onClick: () -> Unit) {
                 color = UacColors.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, fontFamily = homeLocalizedFont(),
             )
             Text(
-                homeText("Every step of the Parvaz connect, live", "همه مراحل اتصال پرواز، به‌صورت زنده"),
+                homeText("Every step of the Xray connect, live", "همه مراحل اتصال Xray، به‌صورت زنده"),
                 color = UacColors.TextSecondary, fontSize = 11.5.sp, fontFamily = homeLocalizedFont(),
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
@@ -180,7 +180,7 @@ internal fun XrayLiveFlowButton(accent: Color, onClick: () -> Unit) {
 internal fun XrayLiveFlowDialog(visible: Boolean, onDismissRequest: () -> Unit) {
     AnimatedHomeMetricDialog(
         visible = visible,
-        title = homeText("Live path · Parvaz", "مسیر زنده · پرواز"),
+        title = homeText("Live path · Xray", "مسیر زنده · Xray"),
         subtitle = homeText("The connect process, step by step", "فرایند اتصال، مرحله به مرحله"),
         icon = Icons.Outlined.Route,
         onDismissRequest = onDismissRequest,
@@ -261,7 +261,7 @@ private fun XrayLiveFlowContent() {
         Spacer(Modifier.height(12.dp))
         if (snap.startedAt == 0L) {
             Text(
-                homeText("Connect with Parvaz to see the live flow.", "برای دیدن مسیر زنده، با پرواز وصل شو."),
+                homeText("Connect with Xray to see the live flow.", "برای دیدن مسیر زنده، با Xray وصل شو."),
                 color = UacColors.TextSecondary, fontSize = 12.5.sp, fontFamily = homeLocalizedFont(),
                 modifier = Modifier.padding(8.dp),
             )
