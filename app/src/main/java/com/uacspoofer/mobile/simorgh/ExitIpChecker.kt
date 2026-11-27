@@ -209,7 +209,7 @@ object ExitIpChecker {
             connection.useCaches = false
             connection.instanceFollowRedirects = true
             connection.setRequestProperty("Cache-Control", "no-cache")
-            connection.setRequestProperty("User-Agent", "Simorgh/1.0")
+            connection.setRequestProperty("User-Agent", "Blackdey/1.0")
             val code = connection.responseCode
             check(code in 200..299) { "HTTP $code" }
             return connection.inputStream.use { input ->

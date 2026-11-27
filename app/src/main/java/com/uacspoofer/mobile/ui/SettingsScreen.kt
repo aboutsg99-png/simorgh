@@ -1,5 +1,12 @@
 package com.uacspoofer.mobile.ui
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.foundation.layout.fillMaxSize
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.app.StatusBarManager
@@ -173,60 +180,73 @@ private enum class SettingsSection(val icon: ImageVector) {
 
 @Composable
 internal fun SettingsScreen(
-    onMenuClick: () -> Unit,
-    themeEditorEnabled: Boolean,
-    onEditTheme: () -> Unit,
-    onAdvancedSettingsClick: () -> Unit,
-    onPowSettingsClick: () -> Unit,
-    onTorSettingsClick: () -> Unit,
-    onDirectSettingsClick: () -> Unit = {},
+    onBack: () -> Unit,
+    onOpen: (com.uacspoofer.mobile.ui.shell.Route) -> Unit,
 ) {
     val context = LocalContext.current
-    val isPersian = LocalHomePersian.current
-    val engineStore = remember(context) { EngineModeStore.get(context) }
-    val engineMode by engineStore.mode.collectAsStateWithLifecycle()
-    val localizedTextStyle = homeLocalizedTextStyle().copy(textAlign = TextAlign.Start)
-    val layoutDirection = if (isPersian) LayoutDirection.Rtl else LayoutDirection.Ltr
+    val isPersian = true
+    val sx = com.uacspoofer.mobile.ui.shell.LocalSx.current
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var tileNotice by remember { mutableStateOf<String?>(null) }
-    val accent = UacColors.DisconnectedBlue
     val tileAddedMessage = homeText("Tile added successfully", "دکمه به پنل اضافه شد")
     val tileAlreadyAddedMessage = homeText("Tile is already in Quick Settings", "این دکمه از قبل در تنظیمات سریع هست")
     val tileNotAddedMessage = homeText("Tile was not added", "دکمه اضافه نشد")
     val tileManualMessage = homeText(
-        "Open Quick Settings edit mode and drag Simorgh into the panel",
-        "پنل تنظیمات سریع را باز کنید. در بخش ویرایش، دکمهٔ Simorgh را به پنل بکشید.",
+        "Open Quick Settings edit mode and drag Blackdey into the panel",
+        "پنل تنظیمات سریع را باز کنید. در بخش ویرایش، دکمهٔ Blackdey را به پنل بکشید.",
     )
     val tileErrorMessage = homeText("Could not request the tile", "درخواست افزودن دکمه انجام نشد")
-    val diagnosticsOpen = remember { mutableStateOf(false) }
     val secretTaps = remember { mutableIntStateOf(0) }
     val lastSecretTapAt = remember { mutableLongStateOf(0L) }
-
-    if (diagnosticsOpen.value) {
-        RuntimeDiagnosticsScreen(onClose = { diagnosticsOpen.value = false })
-        return
+    var section by remember { mutableStateOf(SettingsSection.APPEARANCE) }
+    val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex }.collect { i ->
+            SettingsSection.entries.getOrNull(i)?.let { section = it }
+        }
     }
 
-    CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
-        ToolPageScaffold(
-            accent = accent,
-            verticalSpacing = 22.dp,
-            listState = listState,
-            textStyle = localizedTextStyle,
-            header = {
-                SettingsPageHeader(
-                    onMenuClick = onMenuClick,
-                    onSectionClick = { section ->
-                        scope.launch { listState.animateScrollToItem(section.ordinal) }
-                    },
-                )
-            },
-        ) {
+    CompositionLocalProvider(
+        LocalLayoutDirection provides LayoutDirection.Rtl,
+        LocalTextStyle provides homeLocalizedTextStyle().copy(textAlign = TextAlign.Start),
+    ) {
+        Column(Modifier.fillMaxSize().background(sx.bgTop)) {
+            com.uacspoofer.mobile.ui.shell.PageHeader("تنظیمات", onBack, modifier = Modifier.padding(top = top))
+            com.uacspoofer.mobile.ui.shell.SSegmented(
+                SettingsSection.entries, section,
+                label = {
+                    when (it) {
+                        SettingsSection.APPEARANCE -> "ظاهر"
+                        SettingsSection.CONNECTION -> "اتصال"
+                        SettingsSection.PRIVACY -> "امنیت"
+                        SettingsSection.TOOLS -> "ابزارها"
+                    }
+                },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            ) { picked ->
+                section = picked
+                scope.launch { listState.animateScrollToItem(picked.ordinal) }
+            }
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottom + 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
             item(key = SettingsSection.APPEARANCE) {
                 SettingsGroup(homeText("App appearance", "ظاهر برنامه")) {
-                    AppThemeSettingsRow(themeEditorEnabled, onEditTheme)
-                    if (Neo.active) NeoAppearanceControls()
+                    ShellSkinRow()
+                    SettingsHairline()
+                    SettingsNavRow(
+                        icon = Icons.Outlined.Palette,
+                        title = "شخصی‌سازی",
+                        summary = "رنگ تأکید، اندازه‌ی متن، گوشه‌ها، دکمه و کارت‌های خانه",
+                        isPersian = isPersian,
+                        showDivider = false,
+                        onClick = { onOpen(com.uacspoofer.mobile.ui.shell.Route.PERSONALIZE) },
+                    )
                 }
             }
             item(key = SettingsSection.CONNECTION) {
@@ -234,55 +254,6 @@ internal fun SettingsScreen(
                     IranDirectSettingsRow(showDivider = true)
                     ConnectionModeSettingsRow(showDivider = true)
                     TunBackendSettingsRow()
-                    if (engineMode.isPow) {
-                        SettingsNavRow(
-                            icon = Icons.Outlined.Hub,
-                            title = homeText("Psiphon/WARP", "Psiphon/WARP"),
-                            summary = homeText("Connection path and MASQUE", "مسیر اتصال و تنظیمات MASQUE"),
-                            isPersian = isPersian,
-                            showDivider = true,
-                            onClick = onPowSettingsClick,
-                        )
-                    }
-                    if (engineMode.isTor) {
-                        SettingsNavRow(
-                            icon = Icons.Outlined.Shield,
-                            title = homeText("Tor settings", "تنظیمات Tor"),
-                            summary = homeText(
-                                "Bridges, exit location and connection options",
-                                "پل‌ها، موقعیت خروجی و گزینه‌های اتصال",
-                            ),
-                            isPersian = isPersian,
-                            showDivider = true,
-                            onClick = onTorSettingsClick,
-                        )
-                    }
-                    if (engineMode.isDirect) {
-                        SettingsNavRow(
-                            icon = Icons.Outlined.Tune,
-                            title = homeText("Direct settings", "تنظیمات Direct"),
-                            summary = homeText(
-                                "DNS and connection options for serverless mode",
-                                "تنظیمات DNS و اتصال در حالت بدون سرور",
-                            ),
-                            isPersian = isPersian,
-                            showDivider = true,
-                            onClick = onDirectSettingsClick,
-                        )
-                    }
-                    if (engineMode.isXray) {
-                        SettingsNavRow(
-                            icon = Icons.Outlined.Tune,
-                            title = homeText("Xray settings", "تنظیمات Xray"),
-                            summary = homeText(
-                                "DNS, TUN and transport options",
-                                "تنظیمات DNS، تونل و روش انتقال",
-                            ),
-                            isPersian = isPersian,
-                            showDivider = true,
-                            onClick = onAdvancedSettingsClick,
-                        )
-                    }
                     AutoConnectSettingsRow(showDivider = true)
                     UntrustedWifiSettingsRow(showDivider = true)
                     LanShareSettingsRow(showDivider = true)
@@ -323,11 +294,27 @@ internal fun SettingsScreen(
                     )
                 }
             }
-            item {
+            item(key = "engines") {
+                SettingsGroup("تنظیمات موتورها") {
+                    val routes = listOf(
+                        Triple(Icons.Outlined.Tune, "Xray", com.uacspoofer.mobile.ui.shell.Route.XRAY_SETTINGS) to "DNS، تونل و روش انتقال",
+                        Triple(Icons.Outlined.Hub, "Cloudflare WARP و Psiphon", com.uacspoofer.mobile.ui.shell.Route.POW_SETTINGS) to "مسیر اتصال، کشور و MASQUE",
+                        Triple(Icons.Outlined.Shield, "Tor + WebTunnel", com.uacspoofer.mobile.ui.shell.Route.TOR_SETTINGS) to "پل‌ها، کشور خروجی و گزینه‌های اتصال",
+                        Triple(Icons.Outlined.Tune, "Direct", com.uacspoofer.mobile.ui.shell.Route.DIRECT_SETTINGS) to "DNS و اتصال در حالت بدون سرور",
+                    )
+                    routes.forEachIndexed { i, (t, summary) ->
+                        SettingsNavRow(
+                            icon = t.first, title = t.second, summary = summary, isPersian = isPersian,
+                            showDivider = i < routes.lastIndex, onClick = { onOpen(t.third) },
+                        )
+                    }
+                }
+            }
+            item(key = "version") {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(168.dp)
+                        .height(96.dp)
                         .pointerInput(Unit) {
                             detectTapGestures {
                                 val now = SystemClock.elapsedRealtime()
@@ -339,87 +326,39 @@ internal fun SettingsScreen(
                                 lastSecretTapAt.longValue = now
                                 if (secretTaps.intValue >= 3) {
                                     secretTaps.intValue = 0
-                                    diagnosticsOpen.value = true
+                                    onOpen(com.uacspoofer.mobile.ui.shell.Route.DIAGNOSTICS)
                                 }
                             }
                         },
-                )
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("Blackdey ${com.uacspoofer.mobile.BuildConfig.VERSION_NAME}", color = sx.textFaint, fontSize = 12.sp)
+                }
+            }
             }
         }
     }
 }
 
+/** Light / dark / system / AMOLED: the same skins as the personalisation page. */
 @Composable
-private fun SettingsPageHeader(
-    onMenuClick: () -> Unit,
-    onSectionClick: (SettingsSection) -> Unit,
-) {
-    val shape = RoundedCornerShape(16.dp)
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-        Column(
-            modifier = Modifier.widthIn(max = WideShell.PageContentMax - 36.dp).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    homeText("General settings", "تنظیمات کلی"),
-                    modifier = Modifier.weight(1f).semantics { heading() },
-                    color = UacColors.TextPrimary,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                    lineHeight = 35.sp,
-                )
-                IconButton(
-                    onClick = onMenuClick,
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(SettingsGroupColor, CircleShape)
-                        .border(1.dp, UacColors.CardBorder, CircleShape)
-                        .openDrawerOnDpadLeft(onMenuClick),
-                ) {
-                    Icon(
-                        Icons.Outlined.Menu,
-                        contentDescription = homeText("Open navigation", "باز کردن منوی برنامه"),
-                        tint = UacColors.TextPrimary,
-                    )
-                }
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(shape)
-                    .background(SettingsGroupColor)
-                    .border(1.dp, UacColors.CardBorder, shape)
-                    .padding(horizontal = 4.dp, vertical = 3.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                for (section in SettingsSection.entries) {
-                    Column(
-                        modifier = Modifier.weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable(role = Role.Button) { onSectionClick(section) }
-                            .padding(vertical = 7.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(3.dp),
-                    ) {
-                        Icon(section.icon, null, tint = UacColors.DisconnectedBlue, modifier = Modifier.size(18.dp))
-                        Text(
-                            when (section) {
-                                SettingsSection.APPEARANCE -> homeText("Appearance", "ظاهر")
-                                SettingsSection.CONNECTION -> homeText("Connection", "اتصال")
-                                SettingsSection.PRIVACY -> homeText("Security", "امنیت")
-                                SettingsSection.TOOLS -> homeText("Tools", "ابزارها")
-                            },
-                            color = UacColors.TextPrimary,
-                            fontSize = 11.sp,
-                            lineHeight = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                }
+private fun ShellSkinRow() {
+    val context = LocalContext.current
+    val sx = com.uacspoofer.mobile.ui.shell.LocalSx.current
+    val store = remember(context) { com.uacspoofer.mobile.ui.shell.ShellPrefsStore.get(context) }
+    val prefs by store.prefsFlow.collectAsStateWithLifecycle()
+    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SettingsRowIcon(Icons.Outlined.Palette, enabled = true)
+            Spacer(Modifier.size(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("پوسته", color = sx.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text("روشن، تیره، بر اساس سیستم یا مشکی کامل", color = sx.textDim, fontSize = 12.5.sp)
             }
         }
+        com.uacspoofer.mobile.ui.shell.SSegmented(
+            com.uacspoofer.mobile.ui.shell.Skin.entries, prefs.skin, label = { it.fa },
+        ) { picked -> store.update { it.copy(skin = picked) } }
     }
 }
 
@@ -1334,7 +1273,7 @@ private fun LanShareEndpointPanel(
                     val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
                         as android.content.ClipboardManager
                     clipboard.setPrimaryClip(
-                        android.content.ClipData.newPlainText("Simorgh ${mode.proxyType}", copyValue),
+                        android.content.ClipData.newPlainText("Blackdey ${mode.proxyType}", copyValue),
                     )
                     copied = true
                 }
@@ -1581,28 +1520,19 @@ private fun SettingsGroup(
     title: String,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val sx = com.uacspoofer.mobile.ui.shell.LocalSx.current
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             title,
-            color = UacColors.TextPrimary,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            lineHeight = 23.sp,
-            modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 8.dp).semantics { heading() },
+            color = sx.textDim,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 6.dp, end = 6.dp, bottom = 8.dp).semantics { heading() },
         )
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .then(
-                    if (Neo.active) {
-                        Modifier.neoSurface(SettingsGroupShape).clip(SettingsGroupShape)
-                    } else {
-                        Modifier
-                            .clip(SettingsGroupShape)
-                            .background(SettingsGroupColor)
-                            .border(1.dp, UacColors.Divider, SettingsGroupShape)
-                    },
-                )
+                .then(with(com.uacspoofer.mobile.ui.shell.LocalSx.current) { Modifier.clip(RoundedCornerShape(radius)).background(surface) })
                 .animateContentSize(),
             content = content,
         )
@@ -1677,13 +1607,9 @@ private fun SettingsToggleRow(
                     )
                 }
             }
-            if (onCheckedChange != null && Neo.active) {
-                NeoToggle(
-                    checked = enabled,
-                    onCheckedChange = onCheckedChange,
-                    modifier = Modifier.semantics { contentDescription = title },
-                )
-            } else if (onCheckedChange != null) {
+            if (onCheckedChange != null) {
+                com.uacspoofer.mobile.ui.shell.SToggle(enabled, onCheckedChange)
+            } else if (false) {
                 Switch(
                     checked = enabled,
                     onCheckedChange = onCheckedChange,
@@ -1796,7 +1722,7 @@ private fun CrashReportSettingsRow(showDivider: Boolean) {
                 copied = false
             } else {
                 context.getSystemService(ClipboardManager::class.java)
-                    ?.setPrimaryClip(ClipData.newPlainText("Simorgh crash report", payload))
+                    ?.setPrimaryClip(ClipData.newPlainText("Blackdey crash report", payload))
                 hasReport = true
                 copied = true
             }
@@ -1833,11 +1759,10 @@ private fun QuickSettingsTileRow(
 
 @Composable
 private fun SettingsRowIcon(icon: ImageVector, enabled: Boolean) {
+    val sx = com.uacspoofer.mobile.ui.shell.LocalSx.current
+    com.uacspoofer.mobile.ui.shell.IconBox(icon, size = 36.dp, tint = if (enabled) sx.accent else sx.textDim)
+    return
     val tint = if (enabled) UacColors.ConnectedGreen else UacColors.TextSecondary
-    if (Neo.active) {
-        NeoIconTile(icon = icon, tint = if (enabled) Neo.accentStart else Neo.muted, size = 36.dp)
-        return
-    }
     Box(
         modifier = Modifier
             .size(32.dp)
@@ -1855,7 +1780,7 @@ private fun SettingsHairline() {
             .fillMaxWidth()
             .padding(start = SettingsRowTextInset, end = 14.dp)
             .height(1.dp)
-            .background(UacColors.DividerOverride.orDefault(Color.White.copy(alpha = 0.07f))),
+            .background(com.uacspoofer.mobile.ui.shell.LocalSx.current.stroke),
     )
 }
 

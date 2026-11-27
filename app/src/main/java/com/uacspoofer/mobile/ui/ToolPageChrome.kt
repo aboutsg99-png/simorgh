@@ -1,56 +1,59 @@
 package com.uacspoofer.mobile.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Menu
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.unit.sp
-import com.uacspoofer.mobile.ui.theme.UacColors
+import com.uacspoofer.mobile.ui.shell.LocalSx
+import com.uacspoofer.mobile.ui.shell.PageHeader
+import com.uacspoofer.mobile.ui.shell.SText
+import com.uacspoofer.mobile.ui.shell.Vazir
 
+/*
+ * Chrome for the tool and engine pages, drawn with the page kit (ui/shell/ShellKit.kt): flat
+ * page background, back arrow + title header, right-to-left body. The signatures stay so the
+ * pages keep their bodies; [accent]/[icon] are accepted and ignored by the header.
+ */
+
+/** Flat page background in the shell palette. */
 @Composable
-internal fun ToolPageBackground(
-    accent: Color,
-    content: @Composable () -> Unit,
-) {
-    GlassBackdrop(accent) { content() }
+internal fun ToolPageBackground(accent: Color, content: @Composable () -> Unit) {
+    val sx = LocalSx.current
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        Box(Modifier.fillMaxSize().background(sx.bgTop)) { content() }
+    }
 }
 
 @Composable
@@ -63,41 +66,22 @@ internal fun ToolPageScaffold(
     content: LazyListScope.() -> Unit,
 ) {
     val wide = LocalWideShell.current
+    val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     ToolPageBackground(accent) {
-        CompositionLocalProvider(LocalTextStyle provides textStyle) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(WindowInsets.safeDrawing.asPaddingValues()),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = if (wide) WideShell.EdgePadding else 18.dp)
-                    .padding(top = 10.dp, bottom = 12.dp),
-            ) {
-                header()
+        CompositionLocalProvider(LocalTextStyle provides textStyle.copy(fontFamily = Vazir)) {
+            Column(Modifier.fillMaxSize().padding(top = top)) {
+                Box(Modifier.fillMaxWidth()) { header() }
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize().then(if (wide) Modifier.widthIn(max = WideShell.PageContentMax) else Modifier),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = bottom + 28.dp),
+                        verticalArrangement = Arrangement.spacedBy(verticalSpacing),
+                        content = content,
+                    )
+                }
             }
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.TopCenter,
-            ) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth()
-                        .then(if (wide) Modifier.widthIn(max = WideShell.PageContentMax) else Modifier),
-                    // Content padding (not a clip-side padding) so neumorphic shadows on the
-                    // cards are not cut at the list edges.
-                    contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 4.dp, bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(verticalSpacing),
-                    content = content,
-                )
-            }
-        }
         }
     }
 }
@@ -110,80 +94,20 @@ internal fun ToolPageHeader(
     accent: Color,
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier,
-    navigationIcon: ImageVector = Icons.Outlined.Menu,
-    navigationDescription: String = "Open navigation",
+    navigationIcon: ImageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+    navigationDescription: String = "بازگشت",
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .glassSurface(CircleShape)
-                .clickable(onClick = onMenuClick)
-                .openDrawerOnDpadLeft(onMenuClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = navigationIcon,
-                contentDescription = navigationDescription,
-                tint = UacColors.TextPrimary,
-                modifier = Modifier.size(24.dp),
-            )
-        }
-        if (Neo.active) {
-            NeoIconTile(icon = icon, tint = accent, size = 44.dp)
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(accent.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
-                    .border(1.dp, accent.copy(alpha = 0.28f), RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(23.dp))
-            }
-        }
-        androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                color = UacColors.TextPrimary,
-                fontSize = 21.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Start,
-            )
-            Text(
-                text = subtitle,
-                color = UacColors.TextSecondary,
-                fontSize = 11.sp,
-                textAlign = TextAlign.Start,
-            )
-        }
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        PageHeader(title, onMenuClick, subtitle, modifier)
     }
 }
 
+/** Small group label above a card. */
 @Composable
 internal fun SectionLabel(text: String, modifier: Modifier = Modifier) {
-    val persian = LocalHomePersian.current
-    Text(
-        text = if (persian) text else text.uppercase(),
-        color = UacColors.TextSecondary,
-        fontSize = 10.sp,
-        fontWeight = FontWeight.SemiBold,
-        letterSpacing = if (persian) 0.sp else 1.2.sp,
-        textAlign = if (persian) TextAlign.End else TextAlign.Start,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 3.dp),
-    )
+    val sx = LocalSx.current
+    SText(text, size = 14.sp, weight = FontWeight.Bold, color = sx.textDim, modifier = modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp))
 }
 
-internal val ToolCardShape = RoundedCornerShape(22.dp)
-private val DefaultToolCardBrush: Brush get() = Glass.Fill
-internal val ToolCardBrush: Brush
-    get() {
-        val custom = UacColors.SurfaceOverride
-        return if (custom.isSpecified) SolidColor(custom) else DefaultToolCardBrush
-    }
+internal val ToolCardShape = RoundedCornerShape(18.dp)
+internal val ToolCardBrush: Brush get() = SolidColor(com.uacspoofer.mobile.ui.theme.UacColors.Surface)

@@ -25,7 +25,8 @@ object WgProbe {
             val port = freePort()
             val core = XrayRawCore(context, "wg-probe")
             try {
-                core.start(WgXrayConfig.build(tunnel, WgXrayConfig.Options(socksPort = port, udp = false, logLevel = "error")), port)
+                val live = runCatching { WgEndpoints.resolved(tunnel) }.getOrDefault(tunnel)
+                core.start(WgXrayConfig.build(live, WgXrayConfig.Options(socksPort = port, udp = false, logLevel = "error")), port)
                 // The first request pays the handshake; take the better of two.
                 val first = LivePing.measure("127.0.0.1", port, timeoutMs)
                 val second = first?.let { LivePing.measure("127.0.0.1", port, timeoutMs) }

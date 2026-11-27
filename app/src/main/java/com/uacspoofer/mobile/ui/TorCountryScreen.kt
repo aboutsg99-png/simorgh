@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Menu
@@ -355,7 +356,7 @@ internal fun TorCountryTopBar(
                 }
                 .openDrawerOnDpadLeft(onMenuClick),
         ) {
-            Icon(Icons.Outlined.Menu, homeText("Open navigation", "بازکردن منو"), tint = UacColors.TextPrimary)
+            Icon(Icons.AutoMirrored.Outlined.ArrowBack, "بازگشت", tint = UacColors.TextPrimary)
         }
         Column(Modifier.weight(1f)) {
             Text(

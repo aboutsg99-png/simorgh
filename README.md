@@ -1,6 +1,6 @@
-# Simorgh
+# Blackdey · بلک دی
 
-کلاینت VPN اندروید با چهار موتور: Xray، Tor (WebTunnel)، PoW (WARP + Psiphon) و Direct.
+کلاینت VPN اندروید (فارسی، راست‌به‌چپ) با موتورهای Xray (کانفیگ و اشتراک خودتان)، Tor + WebTunnel، Cloudflare WARP، Psiphon، WireGuard (کانفیگ خودتان، Proton VPN، Windscribe)، Firefox VPN (حساب فایرفاکس خودتان)، Direct و Auto.
 
 پشتیبانی: تلگرام [@theluciferee](https://t.me/theluciferee)
 

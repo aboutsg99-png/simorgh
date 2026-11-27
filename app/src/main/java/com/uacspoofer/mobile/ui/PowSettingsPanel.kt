@@ -92,6 +92,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.uacspoofer.mobile.ui.shell.sxCard
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.uacspoofer.mobile.engine.pow.AetherNative
@@ -123,7 +124,7 @@ internal val PowPad = 12.dp
 internal val PowGap = 10.dp
 internal val PowHintSize = 12.sp
 internal val PowHintLine = 17.sp
-internal val PowBorder: Color get() = if (Neo.active) Neo.hairline else Color.White.copy(alpha = 0.08f)
+internal val PowBorder: Color get() = UacColors.Divider
 internal val PowSheetColor get() = UacColors.SurfaceOverride.orDefault(UacColors.Surface)
 internal val PowCardBrush get() = ToolCardBrush
 
@@ -143,6 +144,7 @@ internal fun PowSettingsScreen(onBack: () -> Unit) {
     PowLivePathDialog(visible = pathVisible, onDismissRequest = { pathVisible = false })
 }
 
+/** Page header in the page kit style (back arrow, title, subtitle). [accent]/[icon] kept for callers. */
 @Composable
 internal fun PowCompactHeader(
     accent: Color,
@@ -151,76 +153,19 @@ internal fun PowCompactHeader(
     subtitle: String = EngineCatalog.Shahpar.subtitle(),
     icon: ImageVector = EngineCatalog.Shahpar.icon,
 ) {
-    val backLabel = homeText("Back to settings", "برگشت به تنظیمات")
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(if (Neo.active) 44.dp else 40.dp)
-                .then(
-                    if (Neo.active) {
-                        Modifier.neoSurface(RoundedCornerShape(15.dp), depth = 4.dp).clip(RoundedCornerShape(15.dp))
-                    } else {
-                        Modifier.clip(CircleShape).background(Color(0x1FFFFFFF)).border(1.dp, PowBorder, CircleShape)
-                    },
-                )
-                .clickable(onClick = onBack)
-                .openDrawerOnDpadLeft(onBack),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = backLabel,
-                tint = UacColors.TextPrimary,
-                modifier = Modifier.size(22.dp),
-            )
-        }
-        if (Neo.active) {
-            NeoIconTile(icon = icon, tint = accent, size = 40.dp)
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(accent.copy(alpha = 0.14f), PowShape)
-                    .border(1.dp, accent.copy(alpha = 0.30f), PowShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
-            }
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                title,
-                color = UacColors.TextPrimary,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Start,
-                maxLines = 1,
-            )
-            Text(
-                subtitle,
-                color = UacColors.TextSecondary,
-                fontSize = 11.sp,
-                textAlign = TextAlign.Start,
-                maxLines = 1,
-            )
-        }
-    }
+    com.uacspoofer.mobile.ui.shell.PageHeader(title, onBack, subtitle)
 }
 
 /**
  * Lays the panel out right-to-left in Persian so labels, chevrons and switches sit
  * where a Persian reader expects them, and aligns every paragraph to its start.
  */
+/** Every page is right-to-left Persian; paragraphs align to their start. */
 @Composable
 internal fun PowDirectional(content: @Composable () -> Unit) {
-    val persian = LocalHomePersian.current
     CompositionLocalProvider(
-        LocalLayoutDirection provides if (persian) LayoutDirection.Rtl else LayoutDirection.Ltr,
-        LocalTextStyle provides LocalTextStyle.current.copy(textAlign = TextAlign.Start),
+        LocalLayoutDirection provides LayoutDirection.Rtl,
+        LocalTextStyle provides LocalTextStyle.current.copy(textAlign = TextAlign.Start, fontFamily = com.uacspoofer.mobile.ui.shell.Vazir),
         content = content,
     )
 }
@@ -819,46 +764,21 @@ private fun recipeHint(recipe: String): String = when (recipe) {
 
 @Composable
 internal fun PowCard(content: @Composable () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(
-                if (Neo.active) {
-                    Modifier.neoSurface(Neo.CardShape).clip(Neo.CardShape)
-                } else {
-                    Modifier.clip(PowShape).glassSurface(PowShape).border(1.dp, PowBorder, PowShape)
-                },
-            ),
-        content = { content() },
-    )
+    val sx = com.uacspoofer.mobile.ui.shell.LocalSx.current
+    Column(modifier = Modifier.fillMaxWidth().sxCard(sx), content = { content() })
 }
 
 @Composable
 internal fun PowRowDivider() {
-    HorizontalDivider(
-        color = UacColors.Divider.copy(alpha = 0.45f),
-        thickness = 1.dp,
-        modifier = Modifier.padding(start = PowPad + 32.dp + PowGap, end = PowPad),
-    )
+    com.uacspoofer.mobile.ui.shell.RowDivider(inset = 64.dp)
 }
 
 @Composable
 internal fun PowIconTile(icon: ImageVector, tint: Color) {
-    if (Neo.active) {
-        NeoIconTile(icon = icon, tint = tint, size = 34.dp)
-        return
-    }
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .background(tint.copy(alpha = 0.12f), PowTileShape)
-            .border(1.dp, tint.copy(alpha = 0.18f), PowTileShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
-    }
+    com.uacspoofer.mobile.ui.shell.IconBox(icon, size = 38.dp, tint = tint)
 }
 
+/** Small capsule used for the current value and for status badges. */
 /** Small capsule used for the current value and for status badges. */
 @Composable
 internal fun PowPill(
@@ -867,44 +787,34 @@ internal fun PowPill(
     chevron: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    val sx = com.uacspoofer.mobile.ui.shell.LocalSx.current
     Row(
         modifier = modifier
             .widthIn(max = 190.dp)
-            .then(
-                if (Neo.active) {
-                    Modifier.neoSurface(CircleShape, depth = 2.5.dp, inset = true).clip(CircleShape)
-                } else {
-                    Modifier
-                        .clip(CircleShape)
-                        .background(tint.copy(alpha = 0.12f))
-                        .border(1.dp, tint.copy(alpha = 0.26f), CircleShape)
-                },
-            )
-            .padding(start = 10.dp, end = if (chevron) 6.dp else 10.dp, top = 4.dp, bottom = 4.dp),
+            .clip(RoundedCornerShape(10.dp))
+            .background(tint.copy(alpha = if (sx.light) 0.10f else 0.16f))
+            .padding(start = 10.dp, end = if (chevron) 6.dp else 10.dp, top = 5.dp, bottom = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(
             text,
             color = tint,
-            fontSize = 12.sp,
+            fontSize = 12.5.sp,
             fontWeight = FontWeight.SemiBold,
+            fontFamily = com.uacspoofer.mobile.ui.shell.Vazir,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f, fill = false),
         )
         if (chevron) {
-            Icon(
-                Icons.Outlined.ExpandMore,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(16.dp),
-            )
+            Icon(Icons.Outlined.ExpandMore, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
         }
     }
 }
 
 /** A compact on/off row: icon, title and a one-line subtitle, switch at the end. The whole row toggles. */
+/** On/off row in the page kit style: icon, title, subtitle, switch at the end. The whole row toggles. */
 @Composable
 internal fun PowSwitchRow(
     icon: ImageVector,
@@ -914,52 +824,34 @@ internal fun PowSwitchRow(
     accent: Color,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val sx = com.uacspoofer.mobile.ui.shell.LocalSx.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp)
+            .heightIn(min = 60.dp)
             .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
-            .padding(horizontal = PowPad, vertical = 6.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(PowGap),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         PowIconTile(icon, accent)
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                title,
-                color = UacColors.TextPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (subtitle.isNotBlank()) {
-                Text(
-                    subtitle,
-                    color = UacColors.TextSecondary,
-                    fontSize = 11.5.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+            com.uacspoofer.mobile.ui.shell.SText(title, size = 15.sp, weight = FontWeight.SemiBold, maxLines = 2)
+            if (subtitle.isNotBlank()) com.uacspoofer.mobile.ui.shell.SText(subtitle, size = 12.5.sp, color = sx.textDim, maxLines = 3)
         }
-        // The row handles the tap, so the switch skips its 48dp touch box.
-        if (Neo.active) {
-            NeoToggle(checked = checked, onCheckedChange = null)
-        } else {
-            Switch(
-                checked = checked,
-                onCheckedChange = null,
-                colors = SwitchDefaults.colors(
-                    checkedTrackColor = accent,
-                    checkedThumbColor = Color.White,
-                ),
-            )
-        }
+        Switch(
+            checked = checked,
+            onCheckedChange = null,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White, checkedTrackColor = sx.accent, checkedBorderColor = sx.accent,
+                uncheckedThumbColor = sx.textDim, uncheckedTrackColor = sx.surfaceHigh, uncheckedBorderColor = sx.stroke,
+            ),
+        )
     }
 }
 
 /** A compact setting row: icon + label at the start, current value pill at the end; tap opens a sheet. */
+/** Setting row in the page kit style: icon + label at the start, current value at the end; tap opens a sheet. */
 @Composable
 internal fun PowPickerRow(
     icon: ImageVector,
@@ -973,6 +865,7 @@ internal fun PowPickerRow(
     subtitle: String? = null,
     unlistedTitle: String? = null,
 ) {
+    val sx = com.uacspoofer.mobile.ui.shell.LocalSx.current
     var open by remember { mutableStateOf(false) }
     val selected = choices.firstOrNull { it.id == selectedId }
         ?: unlistedTitle?.let { PowMenuChoice(selectedId, it) }
@@ -980,43 +873,18 @@ internal fun PowPickerRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp)
+            .heightIn(min = 60.dp)
             .clickable { open = true }
-            .padding(horizontal = PowPad, vertical = 6.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(PowGap),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         PowIconTile(icon, tileTint)
-        if (subtitle.isNullOrBlank()) {
-            Text(
-                label,
-                color = UacColors.TextPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-        } else {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    label,
-                    color = UacColors.TextPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    subtitle,
-                    color = UacColors.TextSecondary,
-                    fontSize = 11.5.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+        Column(modifier = Modifier.weight(1f)) {
+            com.uacspoofer.mobile.ui.shell.SText(label, size = 15.sp, weight = FontWeight.SemiBold, maxLines = 2)
+            if (!subtitle.isNullOrBlank()) com.uacspoofer.mobile.ui.shell.SText(subtitle, size = 12.5.sp, color = sx.textDim, maxLines = 3)
         }
-        PowPill(latinDigits(selected.title), accent, chevron = true)
+        PowPill(latinDigits(selected.title), sx.accent, chevron = true)
     }
     if (open) {
         PowChoiceSheet(
@@ -1122,7 +990,7 @@ private fun PowMtuChoiceSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = PowSheetColor,
-        contentColor = Color.White,
+        contentColor = UacColors.TextPrimary,
         dragHandle = {
             Box(
                 Modifier
@@ -1336,7 +1204,7 @@ internal fun PowChoiceSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = PowSheetColor,
-        contentColor = Color.White,
+        contentColor = UacColors.TextPrimary,
         dragHandle = {
             Box(
                 Modifier
@@ -1472,8 +1340,9 @@ internal fun PowHint(text: String, color: Color = UacColors.TextSecondary) {
     Text(
         latinDigits(text),
         color = color,
-        fontSize = PowHintSize,
-        lineHeight = PowHintLine,
+        fontSize = 12.5.sp,
+        lineHeight = 19.sp,
+        fontFamily = com.uacspoofer.mobile.ui.shell.Vazir,
         modifier = Modifier.fillMaxWidth(),
     )
 }
@@ -1487,31 +1356,7 @@ internal fun PowButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    Text(
-        text,
-        color = when {
-            !enabled -> UacColors.TextSecondary
-            filled -> Color.White
-            else -> accent
-        },
-        fontSize = 13.sp,
-        fontWeight = FontWeight.SemiBold,
-        textAlign = TextAlign.Center,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = modifier
-            .clip(PowShape)
-            .background(
-                when {
-                    !enabled -> Color.White.copy(alpha = 0.06f)
-                    filled -> accent
-                    else -> accent.copy(alpha = 0.10f)
-                },
-            )
-            .border(1.dp, if (filled || !enabled) Color.Transparent else accent.copy(alpha = 0.35f), PowShape)
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 11.dp),
-    )
+    com.uacspoofer.mobile.ui.shell.SButton(text, onClick, modifier, primary = filled, enabled = enabled)
 }
 
 @Composable
@@ -1522,7 +1367,7 @@ internal fun PowExpandBody(visible: Boolean, content: @Composable () -> Unit) {
         exit = shrinkVertically() + fadeOut(),
     ) {
         Column {
-            HorizontalDivider(color = UacColors.Divider.copy(alpha = 0.45f), thickness = 1.dp)
+            com.uacspoofer.mobile.ui.shell.RowDivider(inset = 0.dp)
             content()
         }
     }

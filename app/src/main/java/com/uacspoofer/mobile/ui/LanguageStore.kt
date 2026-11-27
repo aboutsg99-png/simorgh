@@ -37,3 +37,8 @@ internal class LanguageStore private constructor(context: Context) {
         }
     }
 }
+
+internal enum class DrawerLanguage {
+    PERSIAN,
+    ENGLISH,
+}

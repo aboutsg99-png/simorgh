@@ -167,7 +167,7 @@ class ProfileCountryRepository private constructor(context: Context) {
      * - IP literal: no DNS;
      * - tunnel up: DNS-over-HTTPS sent through the tunnel's SOCKS port (remote DNS);
      * - no tunnel: the system resolver only if the user opted in ([setDirectDnsAllowed]).
-     * Before, every config host was resolved with the system resolver while Simorgh is
+     * Before, every config host was resolved with the system resolver while Blackdey is
      * excluded from its own VPN, i.e. always straight to the ISP's DNS.
      */
     private fun resolvePrivately(host: String): String? {

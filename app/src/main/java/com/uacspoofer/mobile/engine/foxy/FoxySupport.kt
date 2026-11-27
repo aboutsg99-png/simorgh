@@ -27,7 +27,7 @@ import org.json.JSONObject
  * adapted from Vauth/FoxyVPN (MIT, https://github.com/Vauth/FoxyVPN). Differences:
  * - No third-party remote config: FoxyVPN downloads endpoints and headers from
  *   github.com/Vauth/FoxyConfig at runtime. A remote file that can rewrite the OAuth
- *   token URL could exfiltrate refresh tokens, so Simorgh pins Mozilla's own
+ *   token URL could exfiltrate refresh tokens, so Blackdey pins Mozilla's own
  *   endpoints in code (see [FoxyRemoteConfig]).
  * - No relayer / upstream proxy chaining.
  * - Logs go to the app log with a [FOXY] prefix, never tokens.
@@ -132,7 +132,7 @@ object FoxyRemoteConfig {
         browser = ComponentConfig(headers = mapOf("User-Agent" to FIREFOX_UA)),
     )
 
-    /** FoxyVPN re-downloads its remote config here; Simorgh keeps pinned values. */
+    /** FoxyVPN re-downloads its remote config here; Blackdey keeps pinned values. */
     fun triggerRefresh() = Unit
 }
 
@@ -187,7 +187,7 @@ class SimpleCookieJar : CookieJar {
 }
 
 /**
- * Control-plane HTTP client. Simorgh excludes its own package from the VPN
+ * Control-plane HTTP client. Blackdey excludes its own package from the VPN
  * (see AppRoutingPreferences), so these calls always use the phone's real network,
  * even while another engine's tunnel is up.
  */

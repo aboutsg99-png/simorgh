@@ -115,9 +115,11 @@ internal object Neo {
     val bg: Color get() = UacThemeState.palette.backgroundMiddle
     val hi: Color get() = UacThemeState.palette.neoHi
     val lo: Color get() = UacThemeState.palette.neoLo
-    val accentStart: Color get() = NeoStyleState.style.accentStops()?.first ?: UacThemeState.palette.accentStart
-    val accentEnd: Color get() = NeoStyleState.style.accentStops()?.second ?: UacThemeState.palette.accentEnd
-    val compact: Boolean get() = NeoStyleState.style.compact
+    /** The shell's flat design: cards are plain fills with a hairline edge. */
+    val flat: Boolean get() = UacThemeState.palette.flat
+    val accentStart: Color get() = if (flat) UacThemeState.palette.accentStart else NeoStyleState.style.accentStops()?.first ?: UacThemeState.palette.accentStart
+    val accentEnd: Color get() = if (flat) UacThemeState.palette.accentEnd else NeoStyleState.style.accentStops()?.second ?: UacThemeState.palette.accentEnd
+    val compact: Boolean get() = !flat && NeoStyleState.style.compact
     val powerStyle: PowerButtonStyle get() = NeoStyleState.style.power
     val text: Color get() = UacColors.TextPrimary
     val muted: Color get() = UacColors.TextSecondary
@@ -220,6 +222,11 @@ private class NeoSurfaceNode(
 
     override fun ContentDrawScope.draw() {
         val palette = UacThemeState.palette
+        if (palette.flat) {
+            drawFlat(palette)
+            drawContent()
+            return
+        }
         val style = NeoStyleState.style
         val base = if (fill.isSpecified) fill else palette.backgroundMiddle
         glassScale = style.glassScale
@@ -257,6 +264,18 @@ private class NeoSurfaceNode(
             }
         }
         drawContent()
+    }
+
+    private fun ContentDrawScope.drawFlat(palette: com.uacspoofer.mobile.ui.theme.UacPalette) {
+        if (size.width <= 0f || size.height <= 0f) return
+        val o = shape.createOutline(size, layoutDirection, this)
+        val base = when {
+            fill.isSpecified && fill != palette.backgroundMiddle -> fill
+            inset -> palette.cardHigh
+            else -> palette.card
+        }
+        drawOutline(o, base)
+        drawOutline(o, palette.cardBorder, style = Stroke(1.dp.toPx()))
     }
 
     private fun drawShape(nc: android.graphics.Canvas, paint: Paint) {
@@ -1023,6 +1042,7 @@ internal fun NeoTimeline(
 internal fun Modifier.neoBackground(): Modifier = drawWithCache {
     val bg = Neo.bg
     val light = Neo.light
+    if (Neo.flat) return@drawWithCache onDrawBehind { drawRect(bg) }
     when (NeoStyleState.style.backdrop) {
         NeoBackdrop.PLAIN -> onDrawBehind { drawRect(bg) }
         NeoBackdrop.GRADIENT -> {

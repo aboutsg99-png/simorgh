@@ -6,7 +6,7 @@ import com.uacspoofer.mobile.profiles.Base64Codec
 import java.util.UUID
 
 /**
- * WireGuard tunnels for Simorgh's WireGuard engine. They run on the bundled Xray core's
+ * WireGuard tunnels for Blackdey's WireGuard engine. They run on the bundled Xray core's
  * `wireguard` outbound (userspace, no kernel module, no new native library).
  *
  * Sources: the user's own `.conf` / `wireguard://` link, Proton VPN (signed in with the user's own
@@ -17,7 +17,9 @@ enum class WgSource(val id: String, val label: String) {
     OWN("own", "WireGuard"),
     PROTON("proton", "Proton VPN"),
     WINDSCRIBE("windscribe", "Windscribe"),
-    AMNEZIA("amnezia", "Amnezia");
+    AMNEZIA("amnezia", "Amnezia"),
+    /** Mozilla VPN subscription (Mullvad-run relays); built per connect, never stored in the tunnel list. */
+    MOZILLA("mozilla", "Mozilla VPN");
 
     companion object {
         fun of(id: String?): WgSource = entries.firstOrNull { it.id == id } ?: OWN

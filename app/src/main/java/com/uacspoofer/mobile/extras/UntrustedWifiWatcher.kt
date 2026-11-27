@@ -186,7 +186,7 @@ internal object UntrustedWifiWatcher {
             context,
             ExtrasNotifications.ID_WIFI_CONNECT,
             "وای‌فای ناامن",
-            "به شبکهٔ وای‌فایی وصل شدید که در فهرست مورد اعتماد نیست. برای روشن کردن سیمرغ لمس کنید.",
+            "به شبکهٔ وای‌فایی وصل شدید که در فهرست مورد اعتماد نیست. برای روشن کردن بلک دی لمس کنید.",
             connectOnTap = true,
         )
     }

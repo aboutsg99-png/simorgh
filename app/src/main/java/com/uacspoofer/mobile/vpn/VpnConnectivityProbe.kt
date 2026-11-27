@@ -300,7 +300,7 @@ class VpnConnectivityProbe(
             connection.defaultUseCaches = false
             connection.setRequestProperty("Cache-Control", "no-cache, no-store")
             connection.setRequestProperty("Pragma", "no-cache")
-            connection.setRequestProperty("User-Agent", "Simorgh/0.1")
+            connection.setRequestProperty("User-Agent", "Blackdey/0.1")
             val status = connection.responseCode
             check(status in 200..399) { "HTTP $status from $url" }
             return connection.inputStream.use { input ->

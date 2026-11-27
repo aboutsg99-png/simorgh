@@ -19,7 +19,11 @@ object WgXrayConfig {
         val logLevel: String = "warning",
         /** Override endpoint (a probe of an alternate address of the same server). */
         val endpointOverride: String? = null,
+        /** Carry the WireGuard UDP inside Shadowsocks to this server (Xray dialerProxy chain). */
+        val shadowsocks: SsBridge? = null,
     )
+
+    data class SsBridge(val host: String, val port: Int, val method: String, val password: String)
 
     private val PRIVATE_CIDRS = listOf(
         "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "169.254.0.0/16",
@@ -44,13 +48,29 @@ object WgXrayConfig {
             .put("address", JSONArray(t.addresses))
             .put("peers", peers)
             .put("mtu", t.mtu)
-            // Userspace stack: Simorgh has no kernel WireGuard and must never need root.
+            // Userspace stack: Blackdey has no kernel WireGuard and must never need root.
             .put("noKernelTun", true)
             .put("domainStrategy", if (v6) "ForceIP" else "ForceIPv4")
         if (t.reserved.size == 3) wgSettings.put("reserved", JSONArray(t.reserved))
 
-        val outbounds = JSONArray()
-            .put(JSONObject().put("tag", "proxy").put("protocol", "wireguard").put("settings", wgSettings))
+        val wgOut = JSONObject().put("tag", "proxy").put("protocol", "wireguard").put("settings", wgSettings)
+        o.shadowsocks?.let { wgOut.put("streamSettings", JSONObject().put("sockopt", JSONObject().put("dialerProxy", "ss-bridge"))) }
+        val outbounds = JSONArray().put(wgOut)
+        o.shadowsocks?.let { ss ->
+            outbounds.put(
+                JSONObject().put("tag", "ss-bridge").put("protocol", "shadowsocks").put(
+                    "settings",
+                    JSONObject().put(
+                        "servers",
+                        JSONArray().put(
+                            JSONObject().put("address", ss.host).put("port", ss.port)
+                                .put("method", ss.method).put("password", ss.password),
+                        ),
+                    ),
+                ),
+            )
+        }
+        outbounds
             .put(JSONObject().put("tag", "direct").put("protocol", "freedom").put("settings", JSONObject().put("domainStrategy", "AsIs")))
             .put(JSONObject().put("tag", "block").put("protocol", "blackhole").put("settings", JSONObject()))
             .put(JSONObject().put("tag", "dns-out").put("protocol", "dns").put("settings", JSONObject()))

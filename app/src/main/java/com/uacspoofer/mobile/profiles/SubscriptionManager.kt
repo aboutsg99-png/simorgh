@@ -20,6 +20,7 @@ internal data class SubscriptionFetch(
     val userInfo: SubscriptionUserInfo?,
     val title: String?,
     val viaTunnel: Boolean,
+    val updateIntervalHours: Int? = null,
 )
 
 internal data class SubscriptionRefreshResult(
@@ -52,7 +53,12 @@ internal object SubscriptionManager {
         val cleanUrl = url.trim()
         val previous = existingId?.let(subscriptions::find) ?: subscriptions.findByUrl(cleanUrl)
 
-        val fetched = fetch(context, cleanUrl)
+        val fetched = try {
+            fetch(context, cleanUrl)
+        } catch (error: Exception) {
+            previous?.let { subscriptions.markError(it.id, error.message) }
+            throw error
+        }
         val parsed = SubscriptionConfigParser.parse(fetched.body)
         val unsupported = countUnsupported(fetched.body)
         if (parsed.profiles.isEmpty()) {
@@ -94,6 +100,9 @@ internal object SubscriptionManager {
             userInfo = fetched.userInfo,
             updatedAt = System.currentTimeMillis(),
             unsupportedCount = unsupported,
+            remarkInfo = SubscriptionRemarkInfo.parse(parsed.profiles.map { it.name }),
+            updateIntervalHours = fetched.updateIntervalHours ?: previous?.updateIntervalHours,
+            lastError = null,
         )
         subscriptions.upsert(subscription)
         AppLogRepository.info(
@@ -102,6 +111,36 @@ internal object SubscriptionManager {
         )
         return SubscriptionRefreshResult(subscription, finalLibrary, newIds.size, unsupported, parsed.invalidCount)
     }
+
+    /**
+     * Refreshes every saved subscription (or [ids]), one at a time; a failing one keeps its configs
+     * and records its error. Returns (refreshed, failed). Blocking; call off the main thread.
+     */
+    fun refreshAll(context: Context, ids: Set<String>? = null): Pair<Int, Int> {
+        val store = SubscriptionStore(context)
+        var ok = 0
+        var failed = 0
+        store.all().filter { ids == null || it.id in ids }.forEach { sub ->
+            runCatching { importOrRefresh(context, sub.url, sub.id) }
+                .onSuccess { ok++ }
+                .onFailure { error -> failed++; store.markError(sub.id, error.message ?: "خطا") }
+        }
+        return ok to failed
+    }
+
+    /** Removes several subscriptions and every config they added (multi-select delete). */
+    fun deleteMany(context: Context, ids: Set<String>): ProfileLibrary {
+        val subscriptions = SubscriptionStore(context)
+        val targets = subscriptions.all().filter { it.id in ids }
+        subscriptions.removeAll(ids)
+        val profiles = ProfileStore(context)
+        val drop = targets.flatMap { it.profileIds }.toSet()
+        val existing = profiles.snapshot().customProfiles.map { it.id }.toSet()
+        return profiles.deleteMany(drop intersect existing)
+    }
+
+    /** Adds private configs (share links, one or many) outside any subscription. */
+    fun addPrivate(context: Context, text: String): ProfileImportResult = ProfileStore(context).importText(text)
 
     /** Removes the subscription and every config it added. */
     fun delete(context: Context, id: String): ProfileLibrary {
@@ -174,6 +213,7 @@ internal object SubscriptionManager {
                     userInfo = SubscriptionUserInfo.parse(header("subscription-userinfo")),
                     title = decodeTitle(header("profile-title")),
                     viaTunnel = proxy != Proxy.NO_PROXY,
+                    updateIntervalHours = header("profile-update-interval")?.trim()?.toIntOrNull()?.takeIf { it in 1..720 },
                 )
             } finally {
                 connection.disconnect()

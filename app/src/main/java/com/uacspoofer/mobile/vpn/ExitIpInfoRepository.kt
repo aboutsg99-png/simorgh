@@ -181,7 +181,7 @@ class ExitIpInfoRepository private constructor(context: Context) {
             connection.useCaches = false
             connection.setRequestProperty("Accept", "application/json")
             connection.setRequestProperty("Cache-Control", "no-cache")
-            connection.setRequestProperty("User-Agent", "Simorgh/0.1")
+            connection.setRequestProperty("User-Agent", "Blackdey/0.1")
             val code = connection.responseCode
             val stream = if (code in 200..299) connection.inputStream else connection.errorStream
             val payload = stream?.buffered()?.use { input ->

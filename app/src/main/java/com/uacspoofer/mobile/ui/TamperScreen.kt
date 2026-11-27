@@ -1,5 +1,6 @@
 package com.uacspoofer.mobile.ui
 
+import com.uacspoofer.mobile.ui.shell.openExternalLink
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -35,7 +36,7 @@ internal fun TamperScreen() {
         ) {
             Icon(Icons.Outlined.GppBad, null, tint = UacColors.ErrorRed, modifier = Modifier.size(56.dp))
             Spacer(Modifier.height(18.dp))
-            Text("این نسخه‌ی رسمی Simorgh نیست", color = UacColors.TextPrimary, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+            Text("این نسخه‌ی رسمی Blackdey نیست", color = UacColors.TextPrimary, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
             Spacer(Modifier.height(8.dp))
             Text(
                 "این برنامه تغییر داده شده یا زیر ابزار نفوذ اجرا می‌شود و برای امنیت تو اتصال غیرفعال است. نسخه‌ی اصلی را فقط از پشتیبانی بگیر.",

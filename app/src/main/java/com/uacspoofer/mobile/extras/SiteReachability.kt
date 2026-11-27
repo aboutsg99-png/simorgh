@@ -93,7 +93,7 @@ internal object SiteReachability {
             connection.requestMethod = "HEAD"
             connection.instanceFollowRedirects = false
             connection.useCaches = false
-            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android) Simorgh-Reachability")
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android) Blackdey-Reachability")
             connection.setRequestProperty("Accept-Encoding", "identity")
             val code = connection.responseCode
             val elapsed = ((System.nanoTime() - started) / 1_000_000L).coerceAtLeast(1L)

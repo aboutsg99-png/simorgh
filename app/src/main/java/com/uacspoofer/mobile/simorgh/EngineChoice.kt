@@ -51,9 +51,18 @@ enum class EngineChoice(
                 return true
             }
             val mode = choice.mode ?: return false
+            val pow = PowEngineStore.get(app)
+            // WARP, Psiphon and Psiphon + WARP share one engine mode, so setMode() alone lets a
+            // switch between them through while connected: the row changed but the running
+            // session kept the old exit. Block it like any other engine change.
+            val exitChange = choice.powExit != null && mode == EngineModeStore.get(app).snapshot() &&
+                pow.snapshot().exitMode != choice.powExit
+            if (exitChange && !com.uacspoofer.mobile.engine.canChangeEngineMode(
+                    com.uacspoofer.mobile.core.ConnectionStateStore.state.value,
+                )
+            ) return false
             if (EngineModeStore.get(app).setMode(mode) == EngineModeChangeResult.BLOCKED_WHILE_ACTIVE) return false
             choice.powExit?.let { exit ->
-                val pow = PowEngineStore.get(app)
                 val now = pow.snapshot()
                 if (now.exitMode != exit) pow.save(now.copy(exitMode = exit))
             }

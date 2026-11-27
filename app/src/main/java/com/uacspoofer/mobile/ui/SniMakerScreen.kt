@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
@@ -271,7 +272,7 @@ private fun MakerTopBar(
                 .openDrawerOnDpadLeft(onMenuClick),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Menu, homeText("Open navigation", "بازکردن منو"), tint = UacColors.TextPrimary, modifier = Modifier.size(22.dp))
+            Icon(Icons.AutoMirrored.Outlined.ArrowBack, "بازگشت", tint = UacColors.TextPrimary, modifier = Modifier.size(22.dp))
         }
         Column(Modifier.weight(1f)) {
             Text(

@@ -163,7 +163,50 @@ fun SimorghShellTheme(content: @Composable () -> Unit) {
             Skin.MONO -> monoColors(prefs, anim)
         }.copy(hero = prefs.hero, mapAnim = prefs.mapAnim)
     }
-    CompositionLocalProvider(LocalSx provides colors, LocalLayoutDirection provides LayoutDirection.Rtl, content = content)
+    // Every page (including the engine settings and tool pages) draws with these colours.
+    remember(colors) { com.uacspoofer.mobile.ui.theme.UacThemeState.override = colors.toPagePalette(); 0 }
+    val scheme = remember(colors) { colors.materialScheme() }
+    val typography = remember { vazirTypography() }
+    androidx.compose.material3.MaterialTheme(colorScheme = scheme, typography = typography) {
+        CompositionLocalProvider(
+            LocalSx provides colors,
+            LocalLayoutDirection provides LayoutDirection.Rtl,
+            com.uacspoofer.mobile.ui.LocalHomePersian provides true,
+            content = content,
+        )
+    }
+}
+
+internal fun SxColors.toPagePalette() = com.uacspoofer.mobile.ui.theme.shellPalette(
+    light = light, bg = bgTop, surface = surface, surfaceHigh = surfaceHigh, stroke = stroke,
+    text = text, textDim = textDim, accent = accent, good = good, warn = warn, bad = bad,
+)
+
+private fun SxColors.materialScheme(): androidx.compose.material3.ColorScheme {
+    val base = if (light) androidx.compose.material3.lightColorScheme() else androidx.compose.material3.darkColorScheme()
+    return base.copy(
+        primary = accent, onPrimary = onAccent, primaryContainer = accent.copy(alpha = 0.16f), onPrimaryContainer = text,
+        secondary = accent, onSecondary = onAccent, secondaryContainer = surfaceHigh, onSecondaryContainer = text,
+        tertiary = accent, onTertiary = onAccent,
+        background = bgTop, onBackground = text, surface = surface, onSurface = text,
+        surfaceVariant = surfaceHigh, onSurfaceVariant = textDim, surfaceTint = Color.Transparent,
+        surfaceContainerLowest = surface, surfaceContainerLow = surface, surfaceContainer = surface,
+        surfaceContainerHigh = surface, surfaceContainerHighest = surfaceHigh, inverseSurface = text, inverseOnSurface = surface,
+        outline = stroke, outlineVariant = stroke, error = bad, onError = Color.White,
+        scrim = Color.Black,
+    )
+}
+
+private fun vazirTypography(): androidx.compose.material3.Typography {
+    val t = androidx.compose.material3.Typography()
+    fun TextStyle.v() = copy(fontFamily = Vazir)
+    return t.copy(
+        displayLarge = t.displayLarge.v(), displayMedium = t.displayMedium.v(), displaySmall = t.displaySmall.v(),
+        headlineLarge = t.headlineLarge.v(), headlineMedium = t.headlineMedium.v(), headlineSmall = t.headlineSmall.v(),
+        titleLarge = t.titleLarge.v(), titleMedium = t.titleMedium.v(), titleSmall = t.titleSmall.v(),
+        bodyLarge = t.bodyLarge.v(), bodyMedium = t.bodyMedium.v(), bodySmall = t.bodySmall.v(),
+        labelLarge = t.labelLarge.v(), labelMedium = t.labelMedium.v(), labelSmall = t.labelSmall.v(),
+    )
 }
 
 /**

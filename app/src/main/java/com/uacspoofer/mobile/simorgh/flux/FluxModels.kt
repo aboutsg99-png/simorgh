@@ -1,11 +1,11 @@
 package com.uacspoofer.mobile.simorgh.flux
 
 /*
- * Flux: the adaptive route picker inside Simorgh's Auto engine.
+ * Flux: the adaptive route picker inside Blackdey's Auto engine.
  * Pure Kotlin: everything in this package except
  * FluxStore/FluxPicker runs in JVM unit tests.
  *
- * In Simorgh the engines already adapt edge/fragment per network (AdaptiveConnection, Foxy/PoW coordinators),
+ * In Blackdey the engines already adapt edge/fragment per network (AdaptiveConnection, Foxy/PoW coordinators),
  * so Flux here decides the layer above: WHICH route (a config, a WireGuard tunnel) to try, in
  * which order, for the user's country and IP version, and what to fail over to.
  */

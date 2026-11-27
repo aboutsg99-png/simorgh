@@ -113,10 +113,9 @@ class TorConnectionCoordinator(
         if (settings.connectionMode != CONNECTION_MODE_PROXY) {
             TorStatusStore.update(TorPhase.BRIDGING, 100, "Routing device traffic through Tor")
             TorLiveFlow.start(TorFlowStageId.TUN)
-            // Tor's own MTU choice wins; otherwise the relay MTU, not the Xray TUN default.
-            // The TUN and hev now always get the same value (before, only Zeptun did, so
-            // hev could run at 1400 on a 1280 TUN).
-            val mtu = TorTunRelayConfig.relayMtu(torSettings.tunMtu.takeIf { it in TorEngineSettings.MTU_CHOICES })
+            // Tor's own MTU choice wins, else the app TUN MTU (1280 by default). The TUN and hev
+            // always get the same value.
+            val mtu = TorTunRelayConfig.relayMtu(torSettings.tunMtu.takeIf { it in TorEngineSettings.MTU_CHOICES }, settings.tunMtu)
             val backendSettings = settings.copy(tunMtu = mtu)
             val tun = checkNotNull(establishTun(backendSettings)) { "Android could not establish the VPN interface" }
             tunDescriptor = tun

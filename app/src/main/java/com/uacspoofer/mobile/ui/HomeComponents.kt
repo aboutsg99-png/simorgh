@@ -245,7 +245,7 @@ internal fun HomeHeader(
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
-                    homeText("Simorgh", "سیمرغ"),
+                    homeText("Blackdey", "بلک دی"),
                     color = UacColors.TextPrimary,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.ExtraBold,

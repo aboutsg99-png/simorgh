@@ -3,9 +3,9 @@ package com.uacspoofer.mobile.engine.wireguard
 /**
  * Windscribe with the user's own account.
  *
- * In-app sign-in is not possible on Simorgh's cores: Windscribe's API is reached through its
+ * In-app sign-in is not possible on Blackdey's cores: Windscribe's API is reached through its
  * native WSNet library (libwsnet.so, github.com/Windscribe/wsnet), which signs and fails over the
- * requests; doing it by hand would need Windscribe's client secret, and Simorgh ships no
+ * requests; doing it by hand would need Windscribe's client secret, and Blackdey ships no
  * third-party secrets. So the user generates WireGuard configs in their own account
  * (windscribe.com → My Account → Config Generators → WireGuard) and imports the .conf files;
  * they run on the WireGuard engine like any other tunnel.

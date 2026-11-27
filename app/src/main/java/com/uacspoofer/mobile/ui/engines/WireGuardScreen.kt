@@ -165,7 +165,7 @@ internal fun WireGuardScreen(onBack: () -> Unit, onProtonSignIn: () -> Unit) {
                 EngineTitle("Windscribe")
                 EngineBody(
                     "در حساب Windscribe خودتان بخش Config Generators → WireGuard را باز کنید، برای هر سرور فایل .conf بسازید و " +
-                        "این‌جا با «افزودن فایل» وارد کنید. ورود مستقیم داخل برنامه به کتابخانهٔ بومی WSNet ویندسکرایب نیاز دارد که در سیمرغ نیست.",
+                        "این‌جا با «افزودن فایل» وارد کنید. ورود مستقیم داخل برنامه به کتابخانهٔ بومی WSNet ویندسکرایب نیاز دارد که در بلک دی نیست.",
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     EngineSecondaryButton("باز کردن سازندهٔ کانفیگ") {

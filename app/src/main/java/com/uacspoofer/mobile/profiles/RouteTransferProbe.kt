@@ -377,7 +377,7 @@ class RouteTransferProbe(
     companion object {
         const val CLOUDFLARE_DOWNLOAD_ENDPOINT = "https://speed.cloudflare.com/__down"
         const val CLOUDFLARE_UPLOAD_ENDPOINT = "https://speed.cloudflare.com/__up"
-        private const val USER_AGENT = "Simorgh/RouteProbe"
+        private const val USER_AGENT = "Blackdey/RouteProbe"
         private const val TRANSFER_BUFFER_BYTES = 16 * 1_024
 
         internal fun transferredExactly(requestedBytes: Int, transferredBytes: Int): Boolean =

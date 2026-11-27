@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
@@ -179,7 +180,7 @@ data class MapView(
 
 private data class Camera(val cx: Float, val cy: Float, val scale: Float)
 
-private data class RasterKey(val camera: Camera, val size: IntSize, val sea: Color, val land: Color, val border: Color)
+private data class RasterKey(val camera: Camera, val size: IntSize, val sea: Color, val land: Color, val border: Color, val focus: String, val highlight: Color)
 
 /**
  * The home map card's map. Rendering rules (all draw-phase, no recomposition per frame):
@@ -196,7 +197,9 @@ fun WorldMapCanvas(
     motion: MapMotion,
     active: Boolean,
     modifier: Modifier = Modifier,
-    dotColor: Color = Color(0xFFB9D43A),
+    dotColor: Color = LocalSx.current.accent,
+    /** Fill of the focus country (the exit when connected, the user's own country otherwise). */
+    highlight: Color = Color.Unspecified,
 ) {
     val context = LocalContext.current
     val sx = LocalSx.current
@@ -227,10 +230,10 @@ fun WorldMapCanvas(
         // Settled frame, rasterised off the main thread.
         // produceState keeps its last value across key changes, so the frame carries its own key:
         // a bitmap from the previous skin or size is never drawn for the new one.
-        val frameKey = RasterKey(target, size, sea, land, border)
+        val frameKey = RasterKey(target, size, sea, land, border, view.focus, highlight)
         val settled by produceState<Pair<RasterKey, ImageBitmap>?>(null, map, frameKey) {
             value = withContext(Dispatchers.Default) {
-                runCatching { frameKey to rasterise(map, target, size, sea, land, border) }.getOrNull()
+                runCatching { frameKey to rasterise(map, target, size, sea, land, border, view.focus, highlight) }.getOrNull()
             }
         }
         Canvas(Modifier.fillMaxSize()) {
@@ -252,7 +255,7 @@ fun WorldMapCanvas(
                 scale(s, s, Offset.Zero)
             }) {
                 for (c in map.list) {
-                    if (c.bounds.overlaps(vis)) drawPath(c.path, land)
+                    if (c.bounds.overlaps(vis)) drawPath(c.path, if (highlight.isSpecified && c.iso == view.focus) highlight else land)
                 }
             }
         }
@@ -314,7 +317,16 @@ private fun ExitMarker(
 }
 
 /** Renders the settled map once (background thread; android.graphics, no Compose state). */
-private fun rasterise(map: WorldMapData, cam: Camera, size: IntSize, sea: Color, land: Color, border: Color): ImageBitmap {
+private fun rasterise(
+    map: WorldMapData,
+    cam: Camera,
+    size: IntSize,
+    sea: Color,
+    land: Color,
+    border: Color,
+    focus: String = "",
+    highlight: Color = Color.Unspecified,
+): ImageBitmap {
     val bmp = Bitmap.createBitmap(size.width, size.height, Bitmap.Config.ARGB_8888)
     val canvas = android.graphics.Canvas(bmp)
     canvas.drawColor(sea.toArgb())
@@ -336,6 +348,14 @@ private fun rasterise(map: WorldMapData, cam: Camera, size: IntSize, sea: Color,
     for (c in map.list) {
         if (!c.bounds.overlaps(vis)) continue
         val p = c.path.asAndroidPath()
+        canvas.drawPath(p, fill)
+        canvas.drawPath(p, stroke)
+    }
+    // The focus country is drawn last so its fill and edge sit above its neighbours' borders.
+    val lit = map.countries[focus]
+    if (lit != null && highlight.isSpecified && lit.bounds.overlaps(vis)) {
+        val p = lit.path.asAndroidPath()
+        fill.color = highlight.toArgb()
         canvas.drawPath(p, fill)
         canvas.drawPath(p, stroke)
     }

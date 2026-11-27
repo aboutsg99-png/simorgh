@@ -56,7 +56,7 @@ class ShellShots {
     @Test fun locations() = shot("locations") { LocationsScreen(ConnectionState.DISCONNECTED, {}, {}, {}, 24.dp, 0.dp) }
     @Test fun engines() = shot("engines") { EnginesScreen({}, {}, pad) }
     @Test fun guide() = shot("guide") { GuideTab({}, {}, pad) }
-    @Test fun servers() = shot("servers") { ServersTab(ConnectionState.DISCONNECTED, {}, {}, pad) }
+    @Test fun servers() = shot("servers") { ServersTab(ConnectionState.DISCONNECTED, {}, {}, {}, pad) }
     @Test fun speed() = shot("speed") { SpeedTab(pad) }
     @Test fun personalize() = shot("personalize") { PersonalizeScreen({}, pad) }
     @Test fun profile() = shot("profile") { ProfileTab({}, {}, pad) }

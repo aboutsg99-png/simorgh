@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +18,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.ListAlt
 import androidx.compose.material.icons.outlined.Apps
@@ -47,76 +50,65 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.uacspoofer.mobile.BuildConfig
 import com.uacspoofer.mobile.simorgh.PowerMode
-import com.uacspoofer.mobile.ui.DrawerDestination
 
 @Composable
-internal fun ProfileTab(onOpenLegacy: (DrawerDestination) -> Unit, onOpenPage: (ShellPage) -> Unit, contentPadding: PaddingValues) {
+internal fun ProfileTab(onOpen: (Route) -> Unit, onOpenEngines: () -> Unit, contentPadding: PaddingValues) {
     val context = LocalContext.current
     val sx = LocalSx.current
     val powerFlow = remember(context) { PowerMode.flow(context) }
     val power by powerFlow.collectAsStateWithLifecycle(remember(context) { PowerMode.current(context) })
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item(key = "t") { ScreenTitle("پروفایل") }
-        item(key = "battery-t") { SectionTitle("حالت باتری") }
+        item(key = "id") { Column(Modifier.fillMaxWidth().sxCard(sx)) { AppIdentityRow() } }
         item(key = "battery") {
-            Column(Modifier.fillMaxWidth().sxCard(sx).padding(12.dp)) {
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(sx.surfaceHigh.copy(alpha = 0.6f)).padding(4.dp)) {
-                    PowerMode.entries.forEach { m ->
-                        val on = m == power
-                        Box(
-                            Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
-                                .background(if (on) sx.accent.copy(alpha = 0.16f) else Color.Transparent)
-                                .sxClick { PowerMode.set(context, m) }.padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center,
-                        ) { SText(m.titleFa, size = 14.sp, color = if (on) sx.accent else sx.textDim, weight = if (on) FontWeight.Bold else FontWeight.Normal) }
-                    }
+            SGroup("حالت باتری") {
+                Column(Modifier.padding(12.dp)) {
+                    SSegmented(PowerMode.entries, power, { it.titleFa }) { PowerMode.set(context, it) }
+                    Spacer(Modifier.size(8.dp))
+                    SText(power.subtitleFa, size = 12.sp, color = sx.textDim, maxLines = 3)
                 }
-                Spacer(Modifier.size(8.dp))
-                SText(power.subtitleFa, size = 12.sp, color = sx.textDim, maxLines = 3)
+                DividerLine()
+                SRow(Icons.Outlined.BatteryChargingFull, "باتری و مصرف", "بهینه‌سازی باتری اندروید و صرفه‌جویی جزئی") { onOpen(Route.BATTERY) }
             }
         }
-        item(key = "app-t") { SectionTitle("برنامه") }
+        item(key = "conn") {
+            SGroup("اتصال") {
+                SRow(Icons.Outlined.Public, "سرورها و کانفیگ‌ها", "افزودن کانفیگ و اشتراک، Firefox VPN، پینگ") { onOpen(Route.SERVERS) }
+                RowDivider()
+                SRow(SubEngines.AUTO_ICON, "موتورها", "Auto، ترتیب امتحان و تنظیمات هر موتور") { onOpenEngines() }
+                RowDivider()
+                SRow(Icons.Outlined.Apps, "برنامه‌های خارج از تونل", "برنامه‌هایی که از وی‌پی‌ان عبور نکنند") { onOpen(Route.APP_BYPASS) }
+                RowDivider()
+                SRow(Icons.Outlined.Share, "اشتراک‌گذاری کانفیگ‌ها", "کپی، QR یا ارسال لینک کانفیگ و اشتراک") { onOpen(Route.SHARE) }
+            }
+        }
         item(key = "app") {
-            Column(Modifier.fillMaxWidth().sxCard(sx)) {
-                MenuRow(Icons.Outlined.Palette, "شخصی‌سازی", "پوسته، رنگ، دکمه، کارت‌های خانه") { onOpenPage(ShellPage.PERSONALIZE) }
-                DividerLine()
-                MenuRow(SubEngines.AUTO_ICON, "موتورها", "خودکار، ترتیب جایگزینی و وضعیت هر موتور") { onOpenPage(ShellPage.ENGINES) }
-                DividerLine()
-                MenuRow(Icons.Outlined.Settings, "تنظیمات", "اتصال، شبکه، امنیت و ابزارها") { onOpenLegacy(DrawerDestination.SETTINGS) }
-                DividerLine()
-                MenuRow(Icons.Outlined.Public, "سرورها، کانفیگ‌ها و اشتراک‌ها", "افزودن از کلیپ‌بورد، فایل یا QR؛ ورود به Firefox VPN") { onOpenPage(ShellPage.SERVERS) }
-                DividerLine()
-                MenuRow(Icons.Outlined.Dns, "کانفیگ‌ها و کشورهای موتور فعلی", "مدیریت کامل کانفیگ‌ها یا کشورهای موتور") { onOpenLegacy(DrawerDestination.CONFIGS) }
-                DividerLine()
-                MenuRow(Icons.Outlined.Apps, "برنامه‌های خارج از تونل", "انتخاب برنامه‌هایی که از وی‌پی‌ان رد نشوند") { onOpenLegacy(DrawerDestination.APP_BYPASS) }
-                DividerLine()
-                MenuRow(Icons.Outlined.BatteryChargingFull, "مدیریت باتری پیشرفته", "جزئیات حالت‌های مصرف") { onOpenLegacy(DrawerDestination.BATTERY) }
+            SGroup("برنامه") {
+                SRow(Icons.Outlined.Settings, "تنظیمات", "ظاهر، اتصال، امنیت و ابزارها") { onOpen(Route.SETTINGS) }
+                RowDivider()
+                SRow(Icons.Outlined.Palette, "شخصی‌سازی", "پوسته، رنگ، دکمه و کارت‌های خانه") { onOpen(Route.PERSONALIZE) }
             }
         }
-        item(key = "tools-t") { SectionTitle("ابزارها") }
         item(key = "tools") {
-            Column(Modifier.fillMaxWidth().sxCard(sx)) {
-                MenuRow(Icons.Outlined.Security, "تست نشت کامل", "IP، DNS و WebRTC در browserleaks.com") {
+            SGroup("ابزارها") {
+                SRow(Icons.Outlined.Route, "تست مسیر Xray", "بهترین مسیر برای کانفیگ انتخاب‌شده") { onOpen(Route.ROUTE_TEST) }
+                RowDivider()
+                SRow(Icons.Outlined.Build, "سازنده SNI", "ساخت و آزمایش کانفیگ با SNI") { onOpen(Route.SNI_MAKER) }
+                RowDivider()
+                SRow(Icons.AutoMirrored.Outlined.ListAlt, "لاگ زنده", "رویدادهای اتصال برای عیب‌یابی") { onOpen(Route.LIVE_LOGS) }
+                RowDivider()
+                SRow(Icons.Outlined.Security, "تست نشت کامل", "IP، DNS و WebRTC در browserleaks.com") {
                     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://browserleaks.com/ip")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                 }
-                DividerLine()
-                MenuRow(Icons.Outlined.Route, "تست مسیر Xray", "یافتن بهترین مسیر برای کانفیگ انتخاب‌شده") { onOpenLegacy(DrawerDestination.ROUTE_SPEED_TEST) }
-                DividerLine()
-                MenuRow(Icons.Outlined.Build, "سازنده SNI", "ساخت و آزمایش SNI") { onOpenLegacy(DrawerDestination.SNI_MAKER) }
-                DividerLine()
-                MenuRow(Icons.AutoMirrored.Outlined.ListAlt, "لاگ زنده", "رویدادهای اتصال برای عیب‌یابی") { onOpenLegacy(DrawerDestination.LIVE_LOGS) }
             }
         }
-        item(key = "about-t") { SectionTitle("درباره") }
         item(key = "about") {
-            Column(Modifier.fillMaxWidth().sxCard(sx)) {
-                AppIdentityRow()
-                DividerLine()
-                MenuRow(Icons.AutoMirrored.Outlined.Send, "کانال رسمی تلگرام", "$SIMORGH_TELEGRAM_HANDLE · t.me/theacproject") { openTelegramChannel(context) }
-                DividerLine()
-                MenuRow(Icons.Outlined.SupportAgent, "پشتیبانی و به‌روزرسانی", "بررسی نسخه‌ی جدید، مجوزها") { onOpenLegacy(DrawerDestination.SUPPORT) }
-                DividerLine()
-                MenuRow(Icons.Outlined.Info, "Simorgh ${BuildConfig.VERSION_NAME}", "داده‌ی نقشه: Natural Earth (مالکیت عمومی) · متن‌باز AGPL-3.0") { onOpenLegacy(DrawerDestination.SUPPORT) }
+            SGroup("پشتیبانی") {
+                SRow(Icons.AutoMirrored.Outlined.Send, "کانال رسمی تلگرام", SIMORGH_TELEGRAM_HANDLE) { openTelegramChannel(context) }
+                RowDivider()
+                SRow(Icons.Outlined.SupportAgent, "پشتیبانی و به‌روزرسانی", "نسخه‌ی جدید، کد منبع و مجوزها") { onOpen(Route.SUPPORT) }
+                RowDivider()
+                SRow(Icons.Outlined.BugReport, "گزارش مشکل", "فایل لاگ، گزارش خطا و مشخصات دستگاه") { onOpen(Route.REPORT) }
             }
         }
     }
@@ -136,19 +128,37 @@ fun MenuRow(icon: ImageVector, title: String, subtitle: String, onClick: () -> U
     }
 }
 
+/** Brand wordmark (mark + BLACKDEY + بلک دی) on its black tile, with the version: top of About. */
+@Composable
+internal fun BrandWordmarkCard() {
+    val sx = LocalSx.current
+    Column(
+        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(sx.radius))
+            .background(androidx.compose.ui.graphics.Color.Black).padding(vertical = 18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        androidx.compose.foundation.Image(
+            androidx.compose.ui.res.painterResource(com.uacspoofer.mobile.R.drawable.brand_wordmark), "Blackdey · بلک دی",
+            Modifier.height(170.dp),
+        )
+        Spacer(Modifier.height(6.dp))
+        SText("نسخه‌ی ${BuildConfig.VERSION_NAME} · متن‌باز (AGPL-3.0)", size = 12.5.sp, color = androidx.compose.ui.graphics.Color(0xFFB8B8B8))
+    }
+}
+
 /** App name + logo, shown at the top of the about section. */
 @Composable
 internal fun AppIdentityRow() {
     val sx = LocalSx.current
     Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
         androidx.compose.foundation.Image(
-            androidx.compose.ui.res.painterResource(com.uacspoofer.mobile.R.mipmap.ic_launcher_round), null,
-            Modifier.size(48.dp).clip(androidx.compose.foundation.shape.CircleShape),
+            androidx.compose.ui.res.painterResource(com.uacspoofer.mobile.R.drawable.brand_logo), null,
+            Modifier.size(48.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)),
         )
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            SText("سیمرغ", size = 18.sp, weight = FontWeight.Bold)
-            SText("Simorgh VPN · نسخه‌ی ${BuildConfig.VERSION_NAME}", size = 12.5.sp, color = sx.textDim, ltr = false)
+            SText("بلک دی", size = 18.sp, weight = FontWeight.Bold)
+            SText("Blackdey VPN · نسخه‌ی ${BuildConfig.VERSION_NAME}", size = 12.5.sp, color = sx.textDim, ltr = false)
         }
     }
 }

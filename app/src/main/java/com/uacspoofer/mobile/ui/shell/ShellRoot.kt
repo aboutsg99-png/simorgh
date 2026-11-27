@@ -21,6 +21,8 @@ import androidx.core.view.WindowCompat
 import com.uacspoofer.mobile.core.PowerControl
 import com.uacspoofer.mobile.core.TapDebouncer
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -70,17 +72,7 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.uacspoofer.mobile.core.ConnectionState
 import com.uacspoofer.mobile.simorgh.auto.AutoConnector
-import com.uacspoofer.mobile.ui.AppUpdateDialog
-import com.uacspoofer.mobile.ui.DrawerDestination
-import com.uacspoofer.mobile.ui.MainScreen
-import com.uacspoofer.mobile.update.AppRelease
-import com.uacspoofer.mobile.update.AppUpdateManager
-import com.uacspoofer.mobile.update.UpdateCheckResult
-import com.uacspoofer.mobile.update.UpdateUiState
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-
-enum class ShellPage { PERSONALIZE, ENGINES, LOCATIONS, SERVERS }
 
 private data class NavItem(val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
 
@@ -98,9 +90,8 @@ private const val TAB_ENGINES = 1
 /**
  * App shell, ExpressVPN layout: five tabs (VPN, engines, speed test, guide, profile) with a
  * flat bottom bar. Only the visible tab is composed; the others keep their state in a
- * SaveableStateHolder. Tabs switch instantly (no cross-fade: composing two heavy tabs at
- * once was a visible hitch). The location picker and personalisation open as pages over the
- * tabs; engine settings, configs, logs and the rest still open through the old MainScreen.
+ * SaveableStateHolder. Every other screen (location picker, settings, engine settings, tools,
+ * support) opens as a full-screen page on a back stack over the tabs.
  */
 @Composable
 internal fun SimorghShell(
@@ -110,10 +101,11 @@ internal fun SimorghShell(
     onSwitchProfile: () -> Unit,
     onMinimize: () -> Unit,
     onCloseApp: () -> Unit,
+    initialTab: Int = TAB_HOME,
 ) {
-    var legacy by rememberSaveable { mutableStateOf<String?>(null) }
-    var tab by rememberSaveable { mutableIntStateOf(TAB_HOME) }
-    var page by rememberSaveable { mutableStateOf<ShellPage?>(null) }
+    var tab by rememberSaveable { mutableIntStateOf(initialTab) }
+    var stackRaw by rememberSaveable { mutableStateOf("") }
+    val stack = remember(stackRaw) { decodeStack(stackRaw) }
     UpdateCheckOnStart()
 
     val auto by AutoConnector.progress.collectAsStateWithLifecycle()
@@ -127,35 +119,20 @@ internal fun SimorghShell(
     val onPrimary: () -> Unit = remember {
         { PowerControl.dispatchTap(latestShown, gate, { latestConnect() }, { latestDisconnect() }); Unit }
     }
-
-    val legacyDest = legacy?.let { name -> DrawerDestination.entries.firstOrNull { it.name == name } }
-    if (legacyDest != null) {
-        MainScreen(
-            state = state,
-            onConnect = onConnect,
-            onDisconnect = onDisconnect,
-            onSwitchProfile = onSwitchProfile,
-            onMinimize = onMinimize,
-            onCloseApp = onCloseApp,
-            startDestination = legacyDest,
-            onExitToShell = { legacy = null },
-            checkUpdatesOnStart = false,
-        )
-        return
+    var forward by remember { mutableStateOf(true) }
+    val open: (Route) -> Unit = remember {
+        { r -> val cur = decodeStack(stackRaw); if (cur.lastOrNull() != r) { forward = true; stackRaw = encodeStack(cur + r) } }
     }
-    val openLegacy: (DrawerDestination) -> Unit = remember { { legacy = it.name } }
-    val openPage: (ShellPage) -> Unit = remember {
-        { p -> if (p == ShellPage.ENGINES) { page = null; tab = TAB_ENGINES } else page = p }
-    }
-    val closePage: () -> Unit = remember { { page = null } }
+    val back: () -> Unit = remember { { forward = false; stackRaw = encodeStack(decodeStack(stackRaw).dropLast(1)) } }
+    val top = stack.lastOrNull()
 
     SimorghShellTheme {
         val sx = LocalSx.current
         SystemBarsFor(sx.light)
         var backArmed by remember { mutableStateOf(false) }
-        BackHandler(enabled = page != null) { page = null }
-        BackHandler(enabled = page == null && tab != TAB_HOME) { tab = TAB_HOME }
-        BackHandler(enabled = page == null && tab == TAB_HOME) {
+        BackHandler(enabled = top != null) { back() }
+        BackHandler(enabled = top == null && tab != TAB_HOME) { tab = TAB_HOME }
+        BackHandler(enabled = top == null && tab == TAB_HOME) {
             if (state == ConnectionState.CONNECTED) {
                 onMinimize()
             } else if (backArmed) {
@@ -170,10 +147,10 @@ internal fun SimorghShell(
                 backArmed = false
             }
         }
-        val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         val navHeight = 72.dp
-        val content = remember(top, bottom) { PaddingValues(start = 16.dp, end = 16.dp, top = top + 8.dp, bottom = bottom + navHeight + 16.dp) }
+        val content = remember(topInset, bottom) { PaddingValues(start = 16.dp, end = 16.dp, top = topInset + 8.dp, bottom = bottom + navHeight + 16.dp) }
         // Home draws its hero under the status bar itself.
         val homePadding = remember(bottom) { PaddingValues(bottom = bottom + navHeight + 16.dp) }
         Box(Modifier.fillMaxSize().background(sx.bgTop)) {
@@ -184,52 +161,55 @@ internal fun SimorghShell(
                         state = shown,
                         onPrimary = onPrimary,
                         onConnect = onConnect,
-                        onOpenLocations = { page = ShellPage.LOCATIONS },
+                        onOpenLocations = { open(Route.LOCATIONS) },
                         onOpenEngines = { tab = TAB_ENGINES },
                         contentPadding = homePadding,
-                        topInset = top,
+                        topInset = topInset,
                     )
-                    TAB_ENGINES -> EnginesScreen(onBack = { tab = TAB_HOME }, onOpenLegacy = openLegacy, contentPadding = content)
+                    TAB_ENGINES -> EnginesScreen(onBack = { tab = TAB_HOME }, onOpen = open, contentPadding = content)
                     2 -> SpeedTab(contentPadding = content)
-                    3 -> GuideTab(onOpenLegacy = openLegacy, onOpenEngines = { tab = TAB_ENGINES }, contentPadding = content)
-                    else -> ProfileTab(onOpenLegacy = openLegacy, onOpenPage = openPage, contentPadding = content)
+                    3 -> GuideTab(onOpen = open, onOpenEngines = { tab = TAB_ENGINES }, contentPadding = content)
+                    else -> ProfileTab(onOpen = open, onOpenEngines = { tab = TAB_ENGINES }, contentPadding = content)
                 }
             }
+            // Status bar scrim so scrolled content never runs under the clock and icons.
+            if (tab != TAB_HOME) {
+                Box(Modifier.fillMaxWidth().height(topInset).background(sx.bgTop).zIndex(2f))
+            }
+            BottomNav(tab, { tab = it }, Modifier.align(Alignment.BottomCenter), bottom, navHeight)
             val pageDur = if (sx.anim == AnimLevel.OFF) 0 else 220
-            AnimatedVisibility(
-                visible = page != null,
-                enter = slideInHorizontally(tween(pageDur)) { -it / 4 } + fadeIn(tween(pageDur)),
-                exit = slideOutHorizontally(tween(pageDur)) { -it / 4 } + fadeOut(tween(pageDur)),
+            AnimatedContent(
+                targetState = top,
+                transitionSpec = {
+                    if (forward) {
+                        (slideInHorizontally(tween(pageDur)) { -it / 4 } + fadeIn(tween(pageDur))) togetherWith fadeOut(tween(pageDur / 2))
+                    } else {
+                        fadeIn(tween(pageDur / 2)) togetherWith (slideOutHorizontally(tween(pageDur)) { -it / 4 } + fadeOut(tween(pageDur)))
+                    }
+                },
                 modifier = Modifier.zIndex(5f),
-            ) {
-                // Keep showing the page that is animating out.
-                var shownPage by remember { mutableStateOf(page) }
-                if (page != null) shownPage = page
-                Box(Modifier.fillMaxSize().background(sx.bgTop)) {
-                    val pagePadding = PaddingValues(start = 16.dp, end = 16.dp, top = top + 8.dp, bottom = bottom + 24.dp)
-                    when (shownPage) {
-                        ShellPage.PERSONALIZE -> PersonalizeScreen(onBack = closePage, contentPadding = pagePadding)
-                        ShellPage.LOCATIONS -> LocationsScreen(
+                label = "page",
+            ) { route ->
+                if (route != null) {
+                    holder.SaveableStateProvider("page:" + route.name) {
+                        RouteHost(
+                            route = route,
                             state = shown,
-                            onBack = closePage,
+                            onBack = back,
+                            onOpen = open,
                             onConnect = onConnect,
-                            onManage = { page = ShellPage.SERVERS },
-                            topInset = top,
+                            onSwitchProfile = onSwitchProfile,
+                            topInset = topInset,
                             bottomInset = bottom,
                         )
-                        ShellPage.SERVERS -> ServersTab(state = shown, onConnect = onConnect, onOpenLegacy = openLegacy, contentPadding = pagePadding)
-                        ShellPage.ENGINES, null -> Unit
                     }
                 }
-            }
-            if (page == null) {
-                BottomNav(tab, { tab = it }, Modifier.align(Alignment.BottomCenter), bottom, navHeight)
             }
             AnimatedVisibility(
                 visible = backArmed,
                 enter = fadeIn(tween(150)),
                 exit = fadeOut(tween(150)),
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = bottom + navHeight + 16.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = bottom + navHeight + 16.dp).zIndex(6f),
             ) {
                 Box(Modifier.clip(RoundedCornerShape(14.dp)).background(sx.surfaceHigh).padding(horizontal = 16.dp, vertical = 10.dp)) {
                     SText("برای خروج، دوباره «بازگشت» را بزنید", size = 13.sp)
@@ -293,41 +273,13 @@ private fun BottomNav(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier
     }
 }
 
-/** Same update check the old dashboard ran at start (the checker itself is unchanged). */
+/** Same update check as before (the checker itself is unchanged); the result is shared with Support. */
 @Composable
 private fun UpdateCheckOnStart() {
     val context = LocalContext.current
-    val manager = remember(context) { AppUpdateManager(context.applicationContext) }
-    var updateState by remember { mutableStateOf<UpdateUiState>(UpdateUiState.Idle) }
-    var visible by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    LaunchedEffect(manager) {
-        updateState = try {
-            when (val result = manager.checkForUpdate()) {
-                UpdateCheckResult.Current -> UpdateUiState.UpToDate
-                is UpdateCheckResult.Available -> {
-                    visible = true
-                    UpdateUiState.Available(result.release)
-                }
-            }
-        } catch (error: Throwable) {
-            if (error is kotlinx.coroutines.CancellationException) throw error
-            UpdateUiState.Error(error.message ?: "Could not check GitHub Releases")
-        }
+    LaunchedEffect(Unit) { UpdateUi.check(context, scope, showDialog = true) }
+    if (UpdateUi.dialogVisible) {
+        AppUpdateDialog(state = UpdateUi.state, onUpdate = { UpdateUi.download(context, scope, it) }, onDismiss = { UpdateUi.dialogVisible = false })
     }
-    val begin: (AppRelease) -> Unit = { release ->
-        if (updateState !is UpdateUiState.Downloading) {
-            scope.launch {
-                updateState = UpdateUiState.Downloading(release, 0)
-                updateState = try {
-                    manager.downloadAndInstall(release) { p -> updateState = UpdateUiState.Downloading(release, p) }
-                    UpdateUiState.Ready(release, "Download finished. Tap the download notification to install.")
-                } catch (error: Throwable) {
-                    if (error is kotlinx.coroutines.CancellationException) throw error
-                    UpdateUiState.Error(error.message ?: "The update could not be downloaded", release)
-                }
-            }
-        }
-    }
-    if (visible) AppUpdateDialog(state = updateState, onUpdate = begin, onDismiss = { visible = false })
 }

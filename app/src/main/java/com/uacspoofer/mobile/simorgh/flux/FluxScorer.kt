@@ -6,7 +6,7 @@ import kotlin.math.min
 /**
  * One number per route, higher is better. Not latency alone: a 40 ms route that fails every
  * third connect loses to a steady 70 ms one. Weights tuned, without the
- * throughput and handshake terms Simorgh does not measure per route.
+ * throughput and handshake terms Blackdey does not measure per route.
  */
 object FluxScorer {
     data class Weights(

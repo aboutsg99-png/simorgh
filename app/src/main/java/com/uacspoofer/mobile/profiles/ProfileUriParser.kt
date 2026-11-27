@@ -200,7 +200,12 @@ object ProfileUriParser {
         reportUnknownKeys(query.keys)
 
         rejectRemovedTransport(query["type"] ?: query["network"])
-        val network = ProfileNetworks.requireSupported(query["type"] ?: query["network"] ?: "ws")
+        // No `type`: the share-link standard (and v2rayNG) means raw TCP. Old Blackdey links
+        // without a type were WebSocket ones and always carry a path or host, so keep ws for those.
+        val network = ProfileNetworks.requireSupported(
+            query["type"] ?: query["network"]
+                ?: if (query["path"].orEmpty().isNotBlank() || query["host"].orEmpty().isNotBlank()) "ws" else "tcp",
+        )
         val security = normalizeSecurity(query["security"])
         val headerType = normalizeHeaderType(query["headertype"], network)
         val extras = extractExtras(query, security)

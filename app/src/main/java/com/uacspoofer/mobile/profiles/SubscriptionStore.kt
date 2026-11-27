@@ -54,7 +54,41 @@ data class Subscription(
     val userInfo: SubscriptionUserInfo?,
     val updatedAt: Long,
     val unsupportedCount: Int = 0,
-)
+    /** Usage/expiry written in config names, used where the header gave nothing. */
+    val remarkInfo: SubscriptionRemarkInfo? = null,
+    /** `profile-update-interval` header, hours; null when the server did not send it. */
+    val updateIntervalHours: Int? = null,
+    /** Last refresh error (null after a successful refresh). */
+    val lastError: String? = null,
+) {
+    /** Bytes used: header (upload + download) first, then config names. Null when unknown. */
+    val usedBytes: Long?
+        get() = userInfo?.takeIf { it.upload != null || it.download != null }?.used
+            ?: remarkInfo?.usedBytes
+            ?: remarkInfo?.let { r -> if (r.totalBytes != null && r.remainingBytes != null) (r.totalBytes - r.remainingBytes).coerceAtLeast(0L) else null }
+
+    /** Traffic cap in bytes; null when unknown or unlimited. */
+    val totalBytes: Long?
+        get() = userInfo?.total?.takeIf { it > 0L }
+            ?: remarkInfo?.totalBytes
+            ?: remarkInfo?.let { r -> if (r.usedBytes != null && r.remainingBytes != null) r.usedBytes + r.remainingBytes else null }
+
+    val remainingBytes: Long?
+        get() = userInfo?.remaining ?: remarkInfo?.remainingBytes
+            ?: totalBytes?.let { t -> usedBytes?.let { u -> (t - u).coerceAtLeast(0L) } }
+
+    /** Expiry as Unix seconds; null when none was given. */
+    val expireAt: Long?
+        get() = userInfo?.expire?.takeIf { it > 0L } ?: remarkInfo?.expire
+
+    /** Whole days until expiry (negative once expired), or null. */
+    fun daysLeft(nowMillis: Long = System.currentTimeMillis()): Long? =
+        expireAt?.let { Math.floorDiv(it * 1000L - nowMillis, 86_400_000L) }
+
+    /** Used share of the cap, 0..1, or null without a cap. */
+    val usedFraction: Float?
+        get() = totalBytes?.takeIf { it > 0L }?.let { t -> ((usedBytes ?: (t - (remainingBytes ?: t))).toFloat() / t).coerceIn(0f, 1f) }
+}
 
 /** Saved subscription links, the configs each one added, and the last usage the server reported. */
 class SubscriptionStore(context: Context) {
@@ -87,6 +121,20 @@ class SubscriptionStore(context: Context) {
         write(all().filterNot { it.id == id })
     }
 
+    @Synchronized
+    fun removeAll(ids: Set<String>) {
+        write(all().filterNot { it.id in ids })
+    }
+
+    @Synchronized
+    fun markError(id: String, message: String?) {
+        val items = all().toMutableList()
+        val index = items.indexOfFirst { it.id == id }
+        if (index < 0) return
+        items[index] = items[index].copy(lastError = message?.take(200))
+        write(items)
+    }
+
     private fun write(items: List<Subscription>) {
         val array = JSONArray()
         items.forEach { array.put(toJson(it)) }
@@ -100,6 +148,21 @@ class SubscriptionStore(context: Context) {
         .put("profileIds", JSONArray(item.profileIds))
         .put("updatedAt", item.updatedAt)
         .put("unsupported", item.unsupportedCount)
+        .apply {
+            item.updateIntervalHours?.let { put("interval", it) }
+            item.lastError?.let { put("error", it) }
+            item.remarkInfo?.let { r ->
+                put(
+                    "remarkInfo",
+                    JSONObject().apply {
+                        r.usedBytes?.let { put("used", it) }
+                        r.totalBytes?.let { put("total", it) }
+                        r.remainingBytes?.let { put("remaining", it) }
+                        r.expire?.let { put("expire", it) }
+                    },
+                )
+            }
+        }
         .apply {
             item.userInfo?.let { info ->
                 put(
@@ -128,6 +191,12 @@ class SubscriptionStore(context: Context) {
             userInfo = info,
             updatedAt = item.optLong("updatedAt"),
             unsupportedCount = item.optInt("unsupported"),
+            remarkInfo = item.optJSONObject("remarkInfo")?.let { json ->
+                fun opt(key: String): Long? = if (json.has(key)) json.optLong(key) else null
+                SubscriptionRemarkInfo(opt("used"), opt("total"), opt("remaining"), opt("expire")).takeUnless { it.isEmpty }
+            },
+            updateIntervalHours = if (item.has("interval")) item.optInt("interval") else null,
+            lastError = item.optString("error").takeIf { it.isNotBlank() },
         )
     }
 

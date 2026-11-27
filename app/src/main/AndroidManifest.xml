@@ -67,8 +67,9 @@
             android:permission="android.permission.BIND_VPN_SERVICE">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Simorgh tunnel and local SOCKS proxy forwarding" />
-            <intent-filter>
+                android:value="Blackdey tunnel and local SOCKS proxy forwarding" />
+            <!-- Higher priority so always-on VPN resolves to the tunnel, not Game DNS. -->
+            <intent-filter android:priority="100">
                 <action android:name="android.net.VpnService" />
             </intent-filter>
         </service>
@@ -81,7 +82,7 @@
             android:permission="android.permission.BIND_VPN_SERVICE">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Simorgh DNS-only VPN for games" />
+                android:value="Blackdey DNS-only VPN for games" />
             <intent-filter>
                 <action android:name="android.net.VpnService" />
             </intent-filter>

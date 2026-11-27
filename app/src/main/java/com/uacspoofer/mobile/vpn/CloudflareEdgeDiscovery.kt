@@ -933,7 +933,7 @@ private class AndroidCloudflareRangeSource(
             connection.useCaches = false
             connection.instanceFollowRedirects = true
             connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("User-Agent", "Simorgh/${BuildConfig.VERSION_NAME}")
+            connection.setRequestProperty("User-Agent", "Blackdey/${BuildConfig.VERSION_NAME}")
             if (connection.responseCode !in 200..299) return null
             val raw = connection.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
                 val output = StringBuilder()

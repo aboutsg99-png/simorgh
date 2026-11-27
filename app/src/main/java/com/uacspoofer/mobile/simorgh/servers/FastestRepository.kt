@@ -81,8 +81,16 @@ object FastestRepository {
 
     fun foxyCountryList(): List<VpnCountry> = foxyCountries
 
+    /** Screenshot tests only: publish fixed rows. */
+    @androidx.annotation.VisibleForTesting
+    internal fun setForPreview(state: FastestState) { job?.cancel(); frozen = true; mutable.value = state }
+
+    /** Set by [setForPreview]: no loading or measuring replaces the preview rows. */
+    @Volatile private var frozen = false
+
     /** Lists rows with cached real measurements, without measuring anything. */
     fun loadCached(context: Context) {
+        if (frozen) return
         val app = context.applicationContext
         scope.launch {
             val rows = baseRows(app, measuring = false)
@@ -91,7 +99,7 @@ object FastestRepository {
     }
 
     fun pingAll(context: Context) {
-        if (job?.isActive == true) return
+        if (frozen || job?.isActive == true) return
         val app = context.applicationContext
         job = scope.launch {
             mutable.update { it.copy(running = true, rubahSignedIn = rubahSignedIn(app)) }

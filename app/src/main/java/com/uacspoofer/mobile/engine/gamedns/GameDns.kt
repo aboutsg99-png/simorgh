@@ -6,7 +6,7 @@ import kotlin.random.Random
 /*
  * Game DNS: race public DNS
  * resolvers and use the fastest one that really answers for the game's domains, in a DNS-only
- * mode where only DNS goes through Simorgh and the game's own traffic stays direct (lowest ping).
+ * mode where only DNS goes through Blackdey and the game's own traffic stays direct (lowest ping).
  * No crowd statistics are collected: nothing about
  * the user's games or network leaves the phone.
  */

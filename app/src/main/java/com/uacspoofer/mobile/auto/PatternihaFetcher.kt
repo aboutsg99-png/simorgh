@@ -37,7 +37,7 @@ class PatternihaFetcher(private val store: AutoConfigStore, private val network:
             connection.connectTimeout = CONNECT_TIMEOUT_MS
             connection.readTimeout = READ_TIMEOUT_MS
             connection.instanceFollowRedirects = true
-            connection.setRequestProperty("User-Agent", "Simorgh/Auto")
+            connection.setRequestProperty("User-Agent", "Blackdey/Auto")
             connection.setRequestProperty(
                 "Accept",
                 if (url == AutoConfigFeed.API_URL) "application/vnd.github.raw" else "text/plain,*/*",

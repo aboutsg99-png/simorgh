@@ -15,7 +15,7 @@ class CrashReportStoreTest {
             logs = "12:00:00.001 ERROR APP failed",
             atMs = 1_726_444_800_000L,
         )
-        assertTrue(report.contains("Simorgh crash report"))
+        assertTrue(report.contains("Blackdey crash report"))
         assertTrue(report.contains("version=2.0.7 (350)"))
         assertTrue(report.contains("thread=main"))
         assertTrue(report.contains("IllegalStateException: boom"))

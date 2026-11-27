@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Runs the bundled `libxray.so` as a child process with a complete Xray JSON config (used by
- * the WireGuard engine and its probes). Like Parvaz's core it runs outside the VPN (Simorgh
+ * the WireGuard engine and its probes). Like Parvaz's core it runs outside the VPN (Blackdey
  * excludes its own package), so its sockets never loop through the tunnel.
  *
  * The config holds a private key: it is written owner-only and deleted as soon as the core is

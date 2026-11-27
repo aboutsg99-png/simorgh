@@ -43,13 +43,33 @@ internal class WireGuardConnectionCoordinator(private val service: VpnService) {
     @Volatile private var tun: ParcelFileDescriptor? = null
     @Volatile private var session: Session? = null
 
-    private data class Session(val tunnel: WgTunnel, val port: Int, val proxyMode: Boolean, val paused: Boolean = false)
+    private data class Session(
+        val tunnel: WgTunnel,
+        val port: Int,
+        val proxyMode: Boolean,
+        val paused: Boolean = false,
+        val shadowsocks: WgXrayConfig.SsBridge? = null,
+    )
+
+    /**
+     * One prepared attempt from another engine (Firefox VPN's Mozilla WireGuard modes).
+     * [udp2tcp] is the TCP relay target when the WireGuard UDP must ride a TCP connection;
+     * [tunnelFor] gets the loopback UDP port of that relay (0 without one).
+     */
+    data class Attempt(
+        val label: String,
+        val udp2tcp: Pair<String, Int>? = null,
+        val shadowsocks: WgXrayConfig.SsBridge? = null,
+        val tunnelFor: (localUdpPort: Int) -> WgTunnel,
+    )
+
+    @Volatile private var relay: Udp2TcpRelay? = null
 
     fun socksPort(): Int = session?.port ?: 0
 
     fun isRunning(): Boolean {
         val s = session ?: return false
-        return core.isRunning() && (s.proxyMode || tunRelay.isRunning())
+        return core.isRunning() && (s.proxyMode || tunRelay.isRunning()) && (relay?.isRunning() ?: true)
     }
 
     fun tunStats(): TunStats = runCatching { tunRelay.stats() }.getOrDefault(TunStats.ZERO)
@@ -85,18 +105,22 @@ internal class WireGuardConnectionCoordinator(private val service: VpnService) {
                 coroutineContext.ensureActive()
                 val route = FluxPicker.wgRoute(tunnel)
                 publish(WgPhase.TESTING, "اتصال به ${tunnel.name}", tunnel)
-                val result = runCatching { startCore(Session(tunnel, port, proxyMode)) }
+                val live = runCatching { WgEndpoints.resolved(tunnel) }.getOrDefault(tunnel)
+                val result = runCatching { startCore(Session(live, port, proxyMode)) }
                     .mapCatching {
-                        LivePing.measure("127.0.0.1", port, LivePing.TIMEOUT_MS)
-                            ?: LivePing.measure("127.0.0.1", port, LivePing.TIMEOUT_MS)
+                        // A lost first handshake initiation is retried by WireGuard after 5 s:
+                        // three rounds cover one or two lost packets on a lossy mobile line.
+                        LivePing.measure("127.0.0.1", port, HANDSHAKE_PROBE_MS)
+                            ?: LivePing.measure("127.0.0.1", port, HANDSHAKE_PROBE_MS)
+                            ?: LivePing.measure("127.0.0.1", port, HANDSHAKE_PROBE_MS)
                             ?: throw IllegalStateException("WireGuard handshake did not complete (no answer through the tunnel)")
                     }
                 val latency = result.getOrNull()
                 if (latency != null) {
                     FluxPicker.recordSuccess(app, route, latency)
                     runCatching { store.recordResult(tunnel.id, WgResult(true, latency, System.currentTimeMillis())) }
-                    if (!proxyMode) startTun(settings, backend, port, establishTun)
-                    session = Session(tunnel, port, proxyMode)
+                    if (!proxyMode) startTun(settings, backend, port, WgEndpoints.tunMtu(tunnel), establishTun)
+                    session = Session(live, port, proxyMode)
                     WgStatusStore.socksPort = port
                     publish(WgPhase.CONNECTED, "وصل شد · ${tunnel.source.label} · ${tunnel.name}", tunnel, latency)
                     AppLogRepository.success(LogSource.SERVICE, "[WG] connected ${tunnel.source.id} ${tunnel.primary.endpointHost} ${latency}ms")
@@ -113,6 +137,55 @@ internal class WireGuardConnectionCoordinator(private val service: VpnService) {
         }
     }
 
+    /**
+     * Tries [attempts] in order with the same checks as [connect] (real request through the
+     * tunnel), keeps the first that answers and brings up the TUN on it. Throws the last error.
+     */
+    suspend fun connectAttempts(
+        settings: AdvancedSettingsData,
+        backend: TunBackend,
+        attempts: List<Attempt>,
+        establishTun: (AdvancedSettingsData) -> ParcelFileDescriptor?,
+        onAttempt: (Attempt) -> Unit = {},
+    ): WgTunnel = withContext(Dispatchers.IO) {
+        opMutex.withLock {
+            stopLocked()
+            val proxyMode = settings.connectionMode == CONNECTION_MODE_PROXY
+            val port = if (proxyMode) settings.socksPort else WgProbe.freePort()
+            var lastError: Throwable? = null
+            for (attempt in attempts) {
+                coroutineContext.ensureActive()
+                onAttempt(attempt)
+                val result = runCatching {
+                    val localUdp = attempt.udp2tcp?.let { (host, remotePort) ->
+                        Udp2TcpRelay(host, remotePort).also { it.start(); relay = it }.localPort
+                    } ?: 0
+                    val tunnel = attempt.tunnelFor(localUdp)
+                    val s = Session(tunnel, port, proxyMode, shadowsocks = attempt.shadowsocks)
+                    startCore(s)
+                    LivePing.measure("127.0.0.1", port, HANDSHAKE_PROBE_MS)
+                        ?: LivePing.measure("127.0.0.1", port, HANDSHAKE_PROBE_MS)
+                        ?: throw IllegalStateException("no answer through ${attempt.label}")
+                    s
+                }
+                val s = result.getOrNull()
+                if (s != null) {
+                    if (!proxyMode) startTun(settings, backend, port, WgEndpoints.tunMtu(s.tunnel), establishTun)
+                    session = s
+                    WgStatusStore.socksPort = port
+                    AppLogRepository.success(LogSource.SERVICE, "[WG] connected ${attempt.label}")
+                    return@withLock s.tunnel
+                }
+                lastError = result.exceptionOrNull()
+                AppLogRepository.warning(LogSource.SERVICE, "[WG] ${attempt.label} failed: ${lastError?.message.orEmpty().take(160)}")
+                runCatching { core.stop() }
+                relay?.stop()
+                relay = null
+            }
+            throw lastError ?: IllegalStateException("No WireGuard attempt answered")
+        }
+    }
+
     private fun startCore(s: Session) {
         val guard = runCatching { NetworkGuardStore.get(app).snapshot().iranDirect }.getOrDefault(false)
         if (guard) runCatching { GeoAssets.ensure(app) }
@@ -124,6 +197,7 @@ internal class WireGuardConnectionCoordinator(private val service: VpnService) {
                 iranDirect = guard,
                 directDomains = runCatching { DirectDomainWhitelist.snapshotOrEmpty() }.getOrDefault(emptyList()),
                 paused = s.paused,
+                shadowsocks = s.shadowsocks,
             ),
         )
         core.start(config, s.port)
@@ -133,9 +207,9 @@ internal class WireGuardConnectionCoordinator(private val service: VpnService) {
         settings: AdvancedSettingsData,
         backend: TunBackend,
         port: Int,
+        mtu: Int,
         establishTun: (AdvancedSettingsData) -> ParcelFileDescriptor?,
     ) {
-        val mtu = TorTunRelayConfig.relayMtu()
         val descriptor = checkNotNull(establishTun(settings.copy(tunMtu = mtu))) { "Android could not establish the VPN interface" }
         tun = descriptor
         try {
@@ -185,6 +259,12 @@ internal class WireGuardConnectionCoordinator(private val service: VpnService) {
         tun?.let { runCatching { it.close() } }
         tun = null
         runCatching { core.stop() }
+        relay?.stop()
+        relay = null
+    }
+
+    private companion object {
+        const val HANDSHAKE_PROBE_MS = 7_000
     }
 
     private fun publish(phase: WgPhase, detail: String, tunnel: WgTunnel? = null, latency: Long? = null) {

@@ -144,7 +144,7 @@ internal fun PowLivePathButton(accent: Color, onClick: () -> Unit) {
 
 @Composable
 internal fun PowLivePathDialog(visible: Boolean, onDismissRequest: () -> Unit) {
-    AnimatedHomeMetricDialog(
+    com.uacspoofer.mobile.ui.shell.SDialog(
         visible = visible,
         title = homeText("Live path", "مسیر زنده"),
         subtitle = homeText("Device to internet, hop by hop", "از گوشی تا اینترنت، قدم به قدم"),

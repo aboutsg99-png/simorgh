@@ -10,6 +10,8 @@ object ProfileNetworks {
 
     fun normalize(raw: String): String = when (val value = raw.trim().lowercase()) {
         "splithttp" -> XHTTP
+        // Xray 24.9 renamed TCP to RAW; newer panels emit type=raw.
+        "raw" -> "tcp"
         else -> value
     }
 

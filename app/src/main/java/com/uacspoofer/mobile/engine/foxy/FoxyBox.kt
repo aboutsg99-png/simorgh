@@ -16,13 +16,13 @@ class FoxyUnusableException(message: String) : IllegalStateException(message)
 
 /**
  * Runs the Foxy sing-box fork (Vauth/sing-box v1.0.0-masque, GPL-3.0) as a separate
- * executable, not as an in-process gomobile AAR. Simorgh already ships two gomobile
+ * executable, not as an in-process gomobile AAR. Blackdey already ships two gomobile
  * runtimes (libv2ray and Psiphon, patched to load different libgojni copies); a third
  * gomobile AAR would add another `go.Seq` class set and Go runtime in the same process.
  * A child process avoids every JNI/class/symbol clash and a sing-box crash cannot take
  * the app down: the coordinator sees the process exit and recovers or falls back.
  *
- * The child runs with Simorgh's UID, and Simorgh excludes its own package from the VPN,
+ * The child runs with Blackdey's UID, and Blackdey excludes its own package from the VPN,
  * so its sockets to Mozilla's edge never loop through the tunnel.
  */
 internal class FoxyBox(context: Context) {
@@ -148,6 +148,9 @@ internal class FoxyBox(context: Context) {
 
 /** sing-box JSON for one attempt. Only fields that exist in Vauth/sing-box v1.0.0-masque. */
 internal object FoxyBoxConfig {
+    /** How long sing-box waits for the edge's ACK of each ClientHello piece before sending on. */
+    const val FRAGMENT_FALLBACK_DELAY = "500ms"
+
     fun build(
         candidate: ProxyCandidate,
         edgeAddress: String?,
@@ -157,6 +160,7 @@ internal object FoxyBoxConfig {
         paused: Boolean,
         directDomains: List<String>,
         iranRuleSetPath: String? = null,
+        antiFilter: AntiFilterMethod = AntiFilterMethod.PLAIN,
     ): String {
         require(version in 1..3) { "HTTP version must be 1, 2 or 3" }
         require(proxyPass.isNotBlank() && proxyPass.none { it == '\r' || it == '\n' }) { "Invalid proxy pass" }
@@ -175,6 +179,14 @@ internal object FoxyBoxConfig {
         if (version != 3) {
             // uTLS is TCP-only; HTTP/3 uses the QUIC stack's own TLS.
             tls.put("utls", JSONObject().put("enabled", true).put("fingerprint", "firefox"))
+            // Both are applied by the fork's uTLS client on the TCP connection; QUIC ignores them.
+            when (antiFilter) {
+                AntiFilterMethod.FRAGMENT -> tls
+                    .put("fragment", true)
+                    .put("fragment_fallback_delay", FRAGMENT_FALLBACK_DELAY)
+                AntiFilterMethod.RECORD_FRAGMENT -> tls.put("record_fragment", true)
+                else -> Unit
+            }
         }
         val proxy = JSONObject()
             .put("type", "http")
@@ -182,7 +194,7 @@ internal object FoxyBoxConfig {
             .put("server", edgeAddress ?: candidate.host)
             .put("server_port", candidate.port)
             .put("version", version)
-            // Simorgh steps H3 -> H2 -> H1.1 itself after measuring each one,
+            // Blackdey steps H3 -> H2 -> H1.1 itself after measuring each one,
             // so sing-box must not silently downgrade inside an attempt.
             .put("disable_version_fallback", true)
             // Static header: the CLI has no Libbox.setBearerToken; the pass is rotated by

@@ -53,6 +53,11 @@ internal data class UacPalette(
     val neoLo: Color = Color(0xFF121418),
     val accentStart: Color = Color(0xFF4FE3C1),
     val accentEnd: Color = Color(0xFF3AA8FF),
+    /** Flat cards (the app shell's design): no neumorphic shadows, glass or neon light. */
+    val flat: Boolean = false,
+    /** Card fill and the inset/raised-high fill used by flat surfaces. */
+    val card: Color = Color.Unspecified,
+    val cardHigh: Color = Color.Unspecified,
 )
 
 private val ClassicPalette = UacPalette(
@@ -258,7 +263,9 @@ internal fun paletteFor(theme: AppTheme, tokens: NeonTokens? = styleTokens(theme
 
 internal object UacThemeState {
     var theme by mutableStateOf(AppTheme.CLASSIC)
-    val palette by derivedStateOf(structuralEqualityPolicy()) { paletteFor(theme) }
+    /** Set by the app shell: every page then draws with the shell's colours. */
+    var override by mutableStateOf<UacPalette?>(null)
+    val palette by derivedStateOf(structuralEqualityPolicy()) { override ?: paletteFor(theme) }
     val isNeon: Boolean get() = palette.neon
     val isLight: Boolean get() = palette.light
 }
@@ -288,6 +295,54 @@ object UacColors {
     val NeonCyan: Color get() = UacThemeState.palette.neonCyan
     val NeonViolet: Color get() = UacThemeState.palette.neonViolet
 }
+
+/** Builds the shared page palette from the shell's colours (see ui/shell/ShellTheme). */
+internal fun shellPalette(
+    light: Boolean,
+    bg: Color,
+    surface: Color,
+    surfaceHigh: Color,
+    stroke: Color,
+    text: Color,
+    textDim: Color,
+    accent: Color,
+    good: Color,
+    warn: Color,
+    bad: Color,
+): UacPalette = UacPalette(
+    neon = false,
+    backgroundTop = bg,
+    backgroundMiddle = bg,
+    backgroundBottom = bg,
+    surface = surface,
+    disconnected = accent,
+    connecting = accent,
+    connected = good,
+    disconnecting = warn,
+    error = bad,
+    textPrimary = text,
+    textSecondary = textDim,
+    cardBorder = stroke,
+    divider = stroke,
+    buttonCenter = surface,
+    buttonEdge = stroke,
+    buttonInnerRing = surfaceHigh,
+    neonMagenta = accent,
+    neonCyan = accent,
+    neonViolet = accent,
+    settingsSurface = surface,
+    drawerSurface = surface,
+    surfaceOverride = surface,
+    dividerOverride = stroke,
+    light = light,
+    neoHi = surface,
+    neoLo = stroke,
+    accentStart = accent,
+    accentEnd = accent,
+    flat = true,
+    card = surface,
+    cardHigh = surfaceHigh,
+)
 
 data class UiStateColors(val accent: Color)
 

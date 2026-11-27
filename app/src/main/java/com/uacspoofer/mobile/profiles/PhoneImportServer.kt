@@ -101,7 +101,7 @@ internal class PhoneImportServer(
             <head>
               <meta name="viewport" content="width=device-width, initial-scale=1">
               <meta charset="utf-8">
-              <title>Simorgh</title>
+              <title>Blackdey</title>
               <style>
                 body{font-family:Tahoma,Arial,sans-serif;background:#071018;color:#eef4fb;margin:0;padding:22px}
                 h1{font-size:22px;margin:0 0 10px}
@@ -112,7 +112,7 @@ internal class PhoneImportServer(
               </style>
             </head>
             <body>
-              <h1>Simorgh</h1>
+              <h1>Blackdey</h1>
               <p>کانفیگ‌های VLESS، Trojan یا VMess را بچسبان. هر خط یک کانفیگ.</p>
               $err
               <form method="post">
@@ -130,7 +130,7 @@ internal class PhoneImportServer(
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <meta charset="utf-8">
-          <title>Simorgh</title>
+          <title>Blackdey</title>
           <style>
             body{font-family:Tahoma,Arial,sans-serif;background:#071018;color:#eef4fb;margin:0;padding:28px;text-align:center}
             h1{font-size:22px;margin-top:18vh}

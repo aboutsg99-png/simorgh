@@ -64,20 +64,6 @@ class ConfigsSortTest {
         assertEquals(listOf("c", "a", "b", "d"), sorted.map(ProxyProfile::id))
     }
 
-    @Test
-    fun phoneImportQrIsTvOrWideOnly() {
-        assertFalse(showConfigsPhoneImport(wideShell = false))
-        assertTrue(showConfigsPhoneImport(wideShell = true))
-        assertEquals(
-            "Tap + to import VLESS, Trojan or VMess",
-            emptyProfileImportHintEnglish(wideShell = false),
-        )
-        assertEquals(
-            "Tap + or the QR icon to import VLESS, Trojan or VMess",
-            emptyProfileImportHintEnglish(wideShell = true),
-        )
-    }
-
     private fun profile(id: String): ProxyProfile = ProxyProfile.ADVANCED_SETTINGS_TEMPLATE.copy(
         id = id,
         name = id,

@@ -10,16 +10,17 @@ internal object TorTunRelayConfig {
     const val BIG_TCP_BUFFER = 262_144
 
     /**
-     * MTU of a TUN that hev-socks5-tunnel terminates locally (Tor, Rubah, WireGuard-via-Xray).
-     * Those packets never leave the phone as-is: hev rebuilds each TCP stream into the SOCKS
-     * connection, so the outer path MTU does not apply. 1500 instead of the app default 1280
-     * means ~17% fewer packets (and JNI reads/writes) per byte through the userspace stack;
-     * still the Ethernet size, so UDP datagrams forwarded through SOCKS stay unfragmented.
+     * MTU of a TUN that hev-socks5-tunnel terminates locally (Tor, Firefox VPN, WireGuard).
+     * TCP is rebuilt locally, but UDP datagrams (QUIC, games, calls) are forwarded whole through
+     * the SOCKS hop and then re-encapsulated by the outer tunnel (MASQUE, WireGuard). On Iranian
+     * mobile networks the outer path is often well under 1500, so a 1500 TUN made full-size
+     * QUIC packets vanish (slow or stalled sites) while TCP looked fine. Default: the app's own
+     * TUN MTU (1280 unless the user changed it), never above 1500.
      */
-    const val RELAY_MTU = 1_500
+    const val RELAY_MTU = 1_280
 
-    fun relayMtu(userChoice: Int? = null): Int =
-        userChoice?.takeIf { it in 1280..1500 } ?: RELAY_MTU
+    fun relayMtu(userChoice: Int? = null, appMtu: Int = RELAY_MTU): Int =
+        userChoice?.takeIf { it in 1280..1500 } ?: appMtu.takeIf { it in 1280..1500 } ?: RELAY_MTU
 
     fun yaml(
         mtu: Int,

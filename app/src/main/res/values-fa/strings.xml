@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">بلک دی</string>
+    <string name="home_widget_label">بلک دی</string>
     <string name="settings_backup_title">پشتیبان تنظیمات</string>
     <string name="settings_backup_summary">ذخیرهٔ تم، زبان، موتورها و گزینه‌های اتصال در یک فایل JSON</string>
     <string name="settings_restore_title">بازیابی از فایل</string>

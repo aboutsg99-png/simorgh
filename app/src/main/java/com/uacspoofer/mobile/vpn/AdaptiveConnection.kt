@@ -280,7 +280,7 @@ class NetworkFingerprintResolver(context: Context) {
             connection.instanceFollowRedirects = true
             connection.useCaches = false
             connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("User-Agent", "Simorgh/${BuildConfig.VERSION_NAME}")
+            connection.setRequestProperty("User-Agent", "Blackdey/${BuildConfig.VERSION_NAME}")
             check(connection.responseCode in 200..299) { "identity HTTP ${connection.responseCode}" }
             val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText().take(32_768) })
             val nested = json.optJSONObject("connection")
@@ -945,8 +945,8 @@ class AdaptiveCandidatePlanner(
         val raw = when (network.carrierClass) {
             "mci" -> buildList {
                 directCandidate?.let(::add)
-                add(candidate("uac-primary-google", "Simorgh primary + Google DNS", primary, settings, AdaptiveDnsResolvers.GOOGLE))
-                add(candidate("uac-primary-cloudflare-fast", "Simorgh low delay + Cloudflare DNS", primary, settings.copy(finalmaskDelayMs = 0), AdaptiveDnsResolvers.CLOUDFLARE))
+                add(candidate("uac-primary-google", "Blackdey primary + Google DNS", primary, settings, AdaptiveDnsResolvers.GOOGLE))
+                add(candidate("uac-primary-cloudflare-fast", "Blackdey low delay + Cloudflare DNS", primary, settings.copy(finalmaskDelayMs = 0), AdaptiveDnsResolvers.CLOUDFLARE))
                 MCI_EDGE_POOL_ADDRESSES.forEachIndexed { index, address ->
                     val edge = MciEdge(
                         address = address,
@@ -958,17 +958,17 @@ class AdaptiveCandidatePlanner(
                     add(
                         candidate(
                             id = "uac-edge-pool-${address.replace('.', '-')}",
-                            label = "Simorgh edge $address",
+                            label = "Blackdey edge $address",
                             edge = edge,
                             settings = settings,
                             resolver = resolver,
                         ),
                     )
                 }
-                add(candidate("uac-fallback-quad9", "Simorgh fallback + Quad9 DNS", fallback, settings, AdaptiveDnsResolvers.QUAD9))
-                add(candidate("uac-cdn-a-adguard", "Simorgh CDN A + AdGuard DNS", cdnRescueA, settings.copy(finalmaskDelayMs = 15), AdaptiveDnsResolvers.ADGUARD))
-                add(candidate("uac-cdn-b-opendns", "Simorgh CDN B + OpenDNS", cdnRescueB, settings.copy(finalmaskDelayMs = 0), AdaptiveDnsResolvers.OPENDNS))
-                add(candidate("uac-primary-deep-google", "Simorgh deep-fragment rescue", primary.copy(finalmaskMaxSplit = 100), settings.copy(finalmaskDelayMs = 5), AdaptiveDnsResolvers.GOOGLE))
+                add(candidate("uac-fallback-quad9", "Blackdey fallback + Quad9 DNS", fallback, settings, AdaptiveDnsResolvers.QUAD9))
+                add(candidate("uac-cdn-a-adguard", "Blackdey CDN A + AdGuard DNS", cdnRescueA, settings.copy(finalmaskDelayMs = 15), AdaptiveDnsResolvers.ADGUARD))
+                add(candidate("uac-cdn-b-opendns", "Blackdey CDN B + OpenDNS", cdnRescueB, settings.copy(finalmaskDelayMs = 0), AdaptiveDnsResolvers.OPENDNS))
+                add(candidate("uac-primary-deep-google", "Blackdey deep-fragment rescue", primary.copy(finalmaskMaxSplit = 100), settings.copy(finalmaskDelayMs = 5), AdaptiveDnsResolvers.GOOGLE))
             }
             "irancell" -> buildList {
                 directCandidate?.let(::add)

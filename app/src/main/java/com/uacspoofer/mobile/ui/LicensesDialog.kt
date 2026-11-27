@@ -1,5 +1,6 @@
 package com.uacspoofer.mobile.ui
 
+import com.uacspoofer.mobile.ui.shell.openExternalLink
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -68,8 +69,8 @@ internal fun LicensesDialog(onDismiss: () -> Unit) {
             )
             Text(
                 homeText(
-                    "Simorgh is free software under AGPL-3.0. Full source:",
-                    "سیمرغ نرم‌افزار آزاد با مجوز AGPL-3.0 است. کد کامل:",
+                    "Blackdey is free software under AGPL-3.0. Full source:",
+                    "بلک دی نرم‌افزار آزاد با مجوز AGPL-3.0 است. کد کامل:",
                 ),
                 color = UacColors.TextSecondary,
                 fontSize = 12.sp,

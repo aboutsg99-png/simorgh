@@ -1,7 +1,11 @@
 package com.uacspoofer.mobile.ui.shell
 
 import android.content.Context
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,8 +66,6 @@ import com.uacspoofer.mobile.simorgh.servers.RowSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private enum class PickTab(val fa: String) { SUGGESTED("پیشنهادی"), ALL("همه‌ی مکان‌ها"), FAVOURITES("علاقه‌مندی‌ها") }
-
 /** Favourite country codes, persisted (read off the main thread). */
 internal object FavouriteCountries {
     private const val PREFS = "simorgh_favourites_v1"
@@ -114,10 +116,12 @@ private fun buildModel(rows: List<FastRow>): PickerModel {
     )
 }
 
+private enum class PickTab(val fa: String) { ALL("همه"), FAVOURITES("علاقه‌مندی‌ها"), RECENT("اخیر") }
+
 /**
- * Location picker, ExpressVPN style: search, three tabs (suggested / all / favourites), the
- * smart location on top, then flat rows with flag, ping and a star. Grouping and sorting run
- * on a background dispatcher; rows are keyed and typed so scrolling reuses them.
+ * Location picker (ExpressVPN / Proton style): search, the smart location on top, the fastest
+ * few, then every country as one row with its flag and best ping. A country with more than one
+ * server expands to list them. Grouping and sorting run on a background dispatcher.
  */
 @Composable
 internal fun LocationsScreen(
@@ -127,13 +131,17 @@ internal fun LocationsScreen(
     onManage: () -> Unit,
     topInset: Dp,
     bottomInset: Dp,
+    initialTab: Int = 0,
 ) {
     val context = LocalContext.current
     val sx = LocalSx.current
     val fastest by FastestRepository.state.collectAsStateWithLifecycle()
     val location by LocationState.current.collectAsStateWithLifecycle()
-    var tab by rememberSaveable { mutableStateOf(PickTab.SUGGESTED) }
+    val recentItems by remember(context) { com.uacspoofer.mobile.simorgh.RecentLocations.get(context) }.items.collectAsStateWithLifecycle()
+    val home by com.uacspoofer.mobile.simorgh.ExitIpChecker.home.collectAsStateWithLifecycle()
+    var tab by rememberSaveable { mutableStateOf(PickTab.entries[initialTab.coerceIn(0, PickTab.entries.lastIndex)]) }
     var query by rememberSaveable { mutableStateOf("") }
+    var expanded by rememberSaveable { mutableStateOf("") }
     var favourites by remember { mutableStateOf<Set<String>>(emptySet()) }
     LaunchedEffect(Unit) {
         favourites = withContext(Dispatchers.IO) { FavouriteCountries.read(context) }
@@ -148,10 +156,13 @@ internal fun LocationsScreen(
     val q = query.trim()
     val filtered = remember(model, q) {
         if (q.isEmpty()) model.groups else model.groups.filter {
-            it.name.contains(q, true) || countryName(it.code, false).contains(q, true) || it.code.equals(q, true)
+            it.name.contains(q, true) || countryName(it.code, false).contains(q, true) || it.code.equals(q, true) ||
+                it.rows.any { r -> r.title.contains(q, true) }
         }
     }
-    fun pick(target: Target) = SelectionActions.apply(context, target, onConnect).also { onBack() }
+    val recent = remember(recentItems, home.countryCode) { recentPlaces(recentItems, home.countryCode) }
+    val connected = location.connection == ConnectionState.CONNECTED
+    fun pick(target: Target) { SelectionActions.apply(context, target, onConnect); onBack() }
     fun pickRow(row: FastRow) = pick(Target(row.engine, if (row.engine.isXray) "" else row.countryCode, row.profileId))
     fun pickGroup(g: PlaceGroup) {
         val best = g.best ?: g.rows.firstOrNull()
@@ -161,83 +172,122 @@ internal fun LocationsScreen(
         favourites = if (code in favourites) favourites - code else favourites + code
         FavouriteCountries.write(context, favourites)
     }
+    fun groupActive(g: PlaceGroup) = connected && location.displayCode.equals(g.code, true)
     val smart = model.suggested.firstOrNull()
 
     Column(Modifier.fillMaxSize().background(sx.bgTop)) {
-        Row(Modifier.fillMaxWidth().padding(top = topInset + 10.dp, start = 8.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            RoundIconButtonFlat(Icons.AutoMirrored.Outlined.ArrowBack, onBack, description = "بازگشت")
-            Spacer(Modifier.width(4.dp))
-            SText("انتخاب مکان", size = 21.sp, weight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            RoundIconButtonFlat(Icons.Outlined.Add, onManage, description = "کانفیگ‌ها و اشتراک‌ها")
+        PageHeader("انتخاب مکان", onBack, modifier = Modifier.padding(top = topInset)) {
+            RoundIconButtonFlat(Icons.Outlined.Add, onManage, description = "افزودن کانفیگ یا اشتراک")
         }
-        Spacer(Modifier.height(10.dp))
         SearchBox(query, { query = it }, Modifier.padding(horizontal = 16.dp))
-        Spacer(Modifier.height(8.dp))
-        PickTabs(tab) { tab = it }
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomInset + 24.dp)) {
-            if (q.isEmpty() && tab == PickTab.SUGGESTED) {
-                item(key = "smart", contentType = "smart") {
-                    SmartRow(smart) {
-                        if (smart != null) pickRow(smart) else FastestRepository.pingAll(context)
+        Spacer(Modifier.height(10.dp))
+        SSegmented(PickTab.entries, tab, { it.fa }, Modifier.padding(horizontal = 16.dp)) { tab = it }
+        Spacer(Modifier.height(6.dp))
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = bottomInset + 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            when {
+                tab == PickTab.RECENT -> {
+                    if (recent.isEmpty()) item(key = "r-empty") { EmptyState("هنوز به جایی وصل نشده‌اید.") }
+                    else item(key = "recent") {
+                        Column(Modifier.fillMaxWidth().sxCard(sx)) {
+                            recent.forEachIndexed { i, r ->
+                                if (i > 0) RowDivider(58.dp)
+                                PlaceRow(
+                                    code = r.code, title = r.title,
+                                    subtitle = r.entry.engine.fa + " · " + relativeDayFa(r.entry.atMs),
+                                    pingMs = null, measuring = false, favourite = r.code in favourites,
+                                    active = false, onStar = if (r.code.isNotEmpty()) ({ toggleStar(r.code) }) else null,
+                                ) { pick(Target(r.entry.engine, r.entry.selectedCode, r.entry.profileId)) }
+                            }
+                        }
                     }
                 }
-                if (model.suggested.isNotEmpty()) {
-                    item(key = "h-suggest", contentType = "header") { ListHeader("پیشنهاد برای شما") }
-                    items(model.suggested, key = { "s:" + it.key }, contentType = { "row" }) { row ->
-                        PlaceRow(row.countryCode, rowTitle(row), row.pingMs, row.measuring, row.countryCode in favourites, isActive(location, row), { toggleStar(row.countryCode) }) { pickRow(row) }
+                else -> {
+                    if (q.isEmpty() && tab == PickTab.ALL) {
+                        item(key = "smart", contentType = "smart") {
+                            SmartCard(smart, fastest.running) {
+                                if (smart != null) pickRow(smart) else FastestRepository.pingAll(context)
+                            }
+                        }
+                        if (model.suggested.size > 1) {
+                            item(key = "h-fast", contentType = "header") { ListHeader("پرسرعت‌ها", if (fastest.lastRunMs > 0) timeAgoFa(fastest.lastRunMs) else null) }
+                            item(key = "fast", contentType = "card") {
+                                Column(Modifier.fillMaxWidth().sxCard(sx)) {
+                                    model.suggested.forEachIndexed { i, row ->
+                                        if (i > 0) RowDivider(58.dp)
+                                        PlaceRow(
+                                            row.countryCode, rowTitle(row), sourceLabel(row), row.pingMs, row.measuring,
+                                            row.countryCode in favourites, rowActive(location, row),
+                                            onStar = if (row.countryCode.length == 2) ({ toggleStar(row.countryCode) }) else null,
+                                        ) { pickRow(row) }
+                                    }
+                                }
+                            }
+                        }
                     }
-                }
-                if (model.firefox.isNotEmpty()) {
-                    item(key = "h-ff", contentType = "header") { ListHeader("Firefox VPN · MASQUE") }
-                    items(model.firefox, key = { "f:" + it.key }, contentType = { "row" }) { row ->
-                        PlaceRow(row.countryCode, countryName(row.countryCode), row.pingMs, row.measuring, row.countryCode in favourites, isActive(location, row), { toggleStar(row.countryCode) }) { pickRow(row) }
+                    val list = if (tab == PickTab.FAVOURITES) filtered.filter { it.code in favourites } else filtered
+                    item(key = "h-all", contentType = "header") {
+                        ListHeader(if (tab == PickTab.FAVOURITES) "کشورهای دلخواه" else "همه‌ی کشورها", "${list.size} کشور")
                     }
-                }
-                if (model.configs.isNotEmpty()) {
-                    item(key = "h-cfg", contentType = "header") { ListHeader("Xray · کانفیگ‌ها و اشتراک‌ها") }
-                    items(model.configs, key = { "c:" + it.key }, contentType = { "row" }) { row ->
-                        PlaceRow(row.countryCode, row.title, row.pingMs, row.measuring, row.countryCode in favourites, isActive(location, row), null) { pickRow(row) }
+                    if (list.isEmpty()) {
+                        item(key = "empty", contentType = "empty") {
+                            EmptyState(
+                                when {
+                                    tab == PickTab.FAVOURITES && q.isEmpty() -> "با ستاره، کشورهای دلخواه را اینجا نگه دارید."
+                                    fastest.running -> "در حال پینگ گرفتن…"
+                                    else -> "مکانی پیدا نشد."
+                                },
+                            )
+                        }
                     }
-                }
-                if (model.suggested.isEmpty() && model.firefox.isEmpty() && model.configs.isEmpty()) {
-                    item(key = "empty", contentType = "empty") {
-                        EmptyNote(if (fastest.running) "در حال پینگ گرفتن…" else "هنوز سروری اندازه‌گیری نشده. «همه‌ی مکان‌ها» را ببینید یا با + کانفیگ اضافه کنید.")
+                    items(list, key = { "g:" + it.code }, contentType = { "group" }) { g ->
+                        CountryCard(
+                            g = g,
+                            favourite = g.code in favourites,
+                            active = groupActive(g),
+                            open = expanded == g.code,
+                            onToggle = { expanded = if (expanded == g.code) "" else g.code },
+                            onStar = { toggleStar(g.code) },
+                            onPick = { pickGroup(g) },
+                            onRow = { pickRow(it) },
+                            onEngine = { pick(Target(it, g.code)) },
+                            rowActive = { rowActive(location, it) },
+                        )
                     }
-                }
-            } else {
-                val list = if (tab == PickTab.FAVOURITES) filtered.filter { it.code in favourites } else filtered
-                if (list.isEmpty()) {
-                    item(key = "empty", contentType = "empty") {
-                        EmptyNote(if (tab == PickTab.FAVOURITES && q.isEmpty()) "با ستاره، مکان‌های دلخواه را اینجا نگه دارید." else "مکانی پیدا نشد.")
-                    }
-                }
-                items(list, key = { "g:" + it.code }, contentType = { "row" }) { g ->
-                    val best = g.best
-                    PlaceRow(
-                        g.code, g.name, best?.pingMs, g.rows.any { it.measuring }, g.code in favourites,
-                        active = location.connection == ConnectionState.CONNECTED && location.displayCode == g.code,
-                        onStar = { toggleStar(g.code) },
-                        subtitle = when {
-                            g.rows.isEmpty() -> g.engines.joinToString("، ") { it.fa }
-                            else -> (g.rows.map { it.engine }.distinct() + g.engines).distinct().joinToString("، ") { it.fa }
-                        },
-                    ) { pickGroup(g) }
                 }
             }
         }
     }
 }
 
-private fun rowTitle(row: FastRow): String = when (row.source) {
-    RowSource.CONFIG, RowSource.SUBSCRIPTION -> countryName(row.countryCode).ifEmpty { row.title }
-    else -> countryName(row.countryCode).ifEmpty { row.title }
+/** Recent places without the user's own country and without duplicates. */
+internal fun recentPlaces(items: List<com.uacspoofer.mobile.simorgh.RecentLocation>, homeCode: String): List<RecentPlace> {
+    val out = ArrayList<RecentPlace>()
+    var rest = items
+    while (rest.isNotEmpty() && out.size < 6) {
+        val p = recentPlace(rest, homeCode) ?: break
+        if (out.none { it.code == p.code && it.title == p.title }) out += p
+        rest = rest.drop(rest.indexOf(p.entry) + 1)
+    }
+    return out
 }
 
-private fun isActive(location: CurrentLocation, row: FastRow): Boolean {
+private fun rowTitle(row: FastRow): String = countryName(row.countryCode).ifEmpty { row.title }
+
+private fun sourceLabel(row: FastRow): String = when (row.source) {
+    RowSource.CONFIG, RowSource.SUBSCRIPTION -> "Xray · " + row.title
+    RowSource.RUBAH -> "Firefox VPN"
+    RowSource.LIVE -> "اتصال فعلی"
+}
+
+private fun rowActive(location: CurrentLocation, row: FastRow): Boolean {
     if (location.connection != ConnectionState.CONNECTED || location.engine != row.engine) return false
     return when (row.source) {
         RowSource.CONFIG, RowSource.SUBSCRIPTION -> row.profileId == location.selection.profileId
-        RowSource.RUBAH -> row.countryCode == location.selection.countryCode
+        RowSource.RUBAH -> row.countryCode.equals(location.selection.countryCode, true)
         RowSource.LIVE -> true
     }
 }
@@ -245,11 +295,11 @@ private fun isActive(location: CurrentLocation, row: FastRow): Boolean {
 @Composable
 private fun SearchBox(value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
     val sx = LocalSx.current
-    Row(modifier.fillMaxWidth().sxCard(sx).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.fillMaxWidth().sxCard(sx).padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Outlined.Search, null, tint = sx.textDim, modifier = Modifier.size(22.dp))
         Spacer(Modifier.width(10.dp))
         Box(Modifier.weight(1f)) {
-            if (value.isEmpty()) SText("جستجوی کشور یا شهر", color = sx.textDim, size = 15.sp)
+            if (value.isEmpty()) SText("جستجوی کشور یا کانفیگ", color = sx.textFaint, size = 15.sp)
             BasicTextField(
                 value = value,
                 onValueChange = onChange,
@@ -259,101 +309,145 @@ private fun SearchBox(value: String, onChange: (String) -> Unit, modifier: Modif
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+        if (value.isNotEmpty()) {
+            Icon(Icons.Outlined.Close, "پاک کردن", tint = sx.textDim, modifier = Modifier.size(32.dp).clip(CircleShape).sxClick { onChange("") }.padding(5.dp))
+        }
     }
 }
 
 @Composable
-private fun PickTabs(selected: PickTab, onSelect: (PickTab) -> Unit) {
+private fun SmartCard(best: FastRow?, running: Boolean, onClick: () -> Unit) {
     val sx = LocalSx.current
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        Row(Modifier.fillMaxWidth()) {
-            PickTab.entries.forEach { t ->
-                val on = t == selected
-                Column(Modifier.weight(1f).sxClick { onSelect(t) }, horizontalAlignment = Alignment.CenterHorizontally) {
-                    SText(t.fa, size = 14.5.sp, weight = FontWeight.SemiBold, color = if (on) sx.accent else sx.textDim, modifier = Modifier.padding(vertical = 10.dp))
-                    Box(Modifier.fillMaxWidth().height(3.dp).background(if (on) sx.accent else androidx.compose.ui.graphics.Color.Transparent))
+    Row(
+        Modifier.fillMaxWidth().sxCard(sx, highlight = true).sxClick(onClick).padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(42.dp).clip(CircleShape).background(sx.accent), contentAlignment = Alignment.Center) {
+            Icon(Icons.Outlined.Bolt, null, tint = sx.onAccent, modifier = Modifier.size(22.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            SText("مکان هوشمند", size = 16.sp, weight = FontWeight.Bold)
+            SText(
+                best?.let { "سریع‌ترین: " + rowTitle(it) } ?: if (running) "در حال یافتن سریع‌ترین…" else "برای یافتن سریع‌ترین مکان لمس کنید",
+                size = 12.5.sp, color = sx.textDim,
+            )
+        }
+        if (best != null) {
+            FlagBox(best.countryCode, 20.dp)
+            Spacer(Modifier.width(8.dp))
+            PingPill(best.pingMs)
+        }
+    }
+}
+
+@Composable
+private fun ListHeader(title: String, trailing: String? = null) {
+    val sx = LocalSx.current
+    Row(Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 10.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        SText(title, size = 14.sp, color = sx.textDim, weight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        if (trailing != null) SText(trailing, size = 12.sp, color = sx.textFaint)
+    }
+}
+
+@Composable
+private fun CountryCard(
+    g: PlaceGroup,
+    favourite: Boolean,
+    active: Boolean,
+    open: Boolean,
+    onToggle: () -> Unit,
+    onStar: () -> Unit,
+    onPick: () -> Unit,
+    onRow: (FastRow) -> Unit,
+    onEngine: (EngineMode) -> Unit,
+    rowActive: (FastRow) -> Boolean,
+) {
+    val sx = LocalSx.current
+    val ways = g.rows.size + g.engines.size
+    Column(Modifier.fillMaxWidth().sxCard(sx, highlight = active)) {
+        PlaceRow(
+            code = g.code,
+            title = g.name.ifEmpty { g.code },
+            subtitle = (g.rows.map { it.engine } + g.engines).distinct().joinToString("، ") { it.fa },
+            pingMs = g.bestMs,
+            measuring = g.rows.any { it.measuring },
+            favourite = favourite,
+            active = active,
+            onStar = onStar,
+            expand = if (ways > 1) open else null,
+            onExpand = if (ways > 1) onToggle else null,
+            onClick = onPick,
+        )
+        AnimatedVisibility(open && ways > 1) {
+            Column(Modifier.fillMaxWidth().background(sx.surfaceHigh.copy(alpha = if (sx.light) 0.45f else 0.6f))) {
+                g.rows.forEach { row ->
+                    DividerLine()
+                    SubRow(row.title.ifEmpty { row.engine.fa }, row.engine.fa, row.pingMs, row.measuring, rowActive(row)) { onRow(row) }
+                }
+                g.engines.forEach { m ->
+                    DividerLine()
+                    SubRow(m.fa, "کشور خروجی " + g.name, null, false, false) { onEngine(m) }
                 }
             }
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(sx.stroke))
     }
 }
 
 @Composable
-private fun SmartRow(best: FastRow?, onClick: () -> Unit) {
+private fun SubRow(title: String, subtitle: String, pingMs: Long?, measuring: Boolean, active: Boolean, onClick: () -> Unit) {
     val sx = LocalSx.current
-    Column(Modifier.fillMaxWidth().background(sx.surface)) {
-        Row(Modifier.fillMaxWidth().sxClick(onClick).padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(38.dp).clip(CircleShape).background(sx.accent.copy(alpha = 0.13f)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Outlined.Bolt, null, tint = sx.accent, modifier = Modifier.size(20.dp))
+    Row(Modifier.fillMaxWidth().sxClick(onClick).padding(start = 58.dp, end = 14.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SText(title, size = 14.sp, weight = FontWeight.SemiBold)
+                if (active) { Spacer(Modifier.width(6.dp)); STag("متصل", sx.good) }
             }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                SText("مکان هوشمند", size = 15.sp, weight = FontWeight.Bold)
-                SText(best?.let { countryName(it.countryCode).ifEmpty { it.title } } ?: "برای یافتن سریع‌ترین مکان لمس کنید", size = 12.sp, color = sx.textDim)
-            }
-            if (best?.pingMs != null) PingText(best.pingMs, false)
+            SText(subtitle, size = 11.5.sp, color = sx.textDim)
         }
-        DividerLine()
+        if (pingMs != null || measuring) PingPill(pingMs, measuring = measuring)
     }
-}
-
-@Composable
-private fun ListHeader(title: String) {
-    val sx = LocalSx.current
-    SText(title, size = 13.sp, color = sx.textDim, weight = FontWeight.Medium, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp))
 }
 
 @Composable
 private fun PlaceRow(
     code: String,
     title: String,
+    subtitle: String?,
     pingMs: Long?,
     measuring: Boolean,
     favourite: Boolean,
     active: Boolean,
     onStar: (() -> Unit)?,
-    subtitle: String? = null,
+    expand: Boolean? = null,
+    onExpand: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val sx = LocalSx.current
-    Column(Modifier.fillMaxWidth().background(if (active) lerpAccent(sx) else sx.surface)) {
-        Row(Modifier.fillMaxWidth().sxClick(onClick).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            FlagBox(code, 22.dp)
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
+    Row(Modifier.fillMaxWidth().sxClick(onClick).padding(start = 14.dp, end = 4.dp, top = 11.dp, bottom = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+        FlagBox(code, 24.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 SText(title, size = 15.5.sp, weight = FontWeight.SemiBold)
-                if (!subtitle.isNullOrEmpty()) SText(subtitle, size = 11.5.sp, color = sx.textDim)
+                if (active) { Spacer(Modifier.width(6.dp)); STag("متصل", sx.good) }
             }
-            PingText(pingMs, measuring)
-            if (onStar != null) {
-                Spacer(Modifier.width(8.dp))
-                Icon(
-                    if (favourite) Icons.Outlined.Star else Icons.Outlined.StarBorder,
-                    "علاقه‌مندی",
-                    tint = if (favourite) androidx.compose.ui.graphics.Color(0xFFE0A100) else sx.textFaint,
-                    modifier = Modifier.size(36.dp).clip(CircleShape).sxClick(onStar).padding(6.dp),
-                )
-            }
+            if (!subtitle.isNullOrEmpty()) SText(subtitle, size = 11.5.sp, color = sx.textDim)
         }
-        DividerLine()
+        if (pingMs != null || measuring) PingPill(pingMs, measuring = measuring)
+        if (onExpand != null && expand != null) {
+            Icon(
+                if (expand) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, "سرورهای این کشور", tint = sx.textDim,
+                modifier = Modifier.size(38.dp).clip(CircleShape).sxClick(onExpand).padding(7.dp),
+            )
+        }
+        if (onStar != null) {
+            Icon(
+                if (favourite) Icons.Outlined.Star else Icons.Outlined.StarBorder,
+                "علاقه‌مندی",
+                tint = if (favourite) androidx.compose.ui.graphics.Color(0xFFE0A100) else sx.textFaint,
+                modifier = Modifier.size(38.dp).clip(CircleShape).sxClick(onStar).padding(7.dp),
+            )
+        } else Spacer(Modifier.width(8.dp))
     }
-}
-
-private fun lerpAccent(sx: SxColors) = androidx.compose.ui.graphics.lerp(sx.surface, sx.accent, 0.08f)
-
-@Composable
-private fun PingText(ms: Long?, measuring: Boolean) {
-    val sx = LocalSx.current
-    when {
-        ms != null -> SText("$ms ms", size = 13.5.sp, weight = FontWeight.SemiBold, color = sx.pingColor(ms), ltr = true)
-        measuring -> SText("…", size = 13.5.sp, color = sx.textFaint)
-        else -> Unit
-    }
-}
-
-@Composable
-private fun EmptyNote(text: String) {
-    val sx = LocalSx.current
-    SText(text, size = 13.sp, color = sx.textDim, maxLines = 3, modifier = Modifier.fillMaxWidth().padding(24.dp))
 }

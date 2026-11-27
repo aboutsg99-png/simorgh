@@ -70,6 +70,7 @@ import com.uacspoofer.mobile.simorgh.ExitPhase
 import com.uacspoofer.mobile.simorgh.LocationState
 import com.uacspoofer.mobile.simorgh.ProtectedTimeStore
 import com.uacspoofer.mobile.simorgh.RecentLocations
+import com.uacspoofer.mobile.simorgh.RecentLocation
 import com.uacspoofer.mobile.simorgh.SelectionActions
 import com.uacspoofer.mobile.simorgh.SimorghRuntime
 import com.uacspoofer.mobile.simorgh.Target
@@ -183,11 +184,11 @@ private fun HomeHero(state: ConnectionState, topInset: Dp, onPrimary: () -> Unit
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 androidx.compose.foundation.Image(
-                    androidx.compose.ui.res.painterResource(com.uacspoofer.mobile.R.mipmap.ic_launcher_round), null,
-                    Modifier.size(30.dp).clip(CircleShape),
+                    androidx.compose.ui.res.painterResource(com.uacspoofer.mobile.R.drawable.brand_logo), null,
+                    Modifier.size(30.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)),
                 )
                 Spacer(Modifier.width(8.dp))
-                SText("سیمرغ", size = 19.sp, weight = FontWeight.Bold, color = if (sx.light) Color(0xFF1B2B2A) else Color(0xFFEEF3F4))
+                SText("بلک دی", size = 19.sp, weight = FontWeight.Bold, color = sx.text)
             }
             RoundIconButtonFlat(
                 Icons.Outlined.Palette,
@@ -333,39 +334,57 @@ private fun LocationCard(state: ConnectionState, location: CurrentLocation, onOp
     }
 }
 
+/**
+ * What «مکان اخیر» shows: the newest place the user really connected through, never their own
+ * country (a Direct session or an exit check that ran outside the tunnel records it).
+ */
+internal data class RecentPlace(val code: String, val title: String, val entry: RecentLocation)
+
+internal fun recentPlace(items: List<RecentLocation>, homeCode: String): RecentPlace? {
+    val home = homeCode.uppercase()
+    for (r in items) {
+        if (r.engine == EngineMode.UAC_DIRECT) continue
+        val exit = r.countryCode.uppercase().takeIf { it.length == 2 && it != home }
+        val picked = r.selectedCode.uppercase().takeIf { it.length == 2 && it != home }
+        val code = exit ?: picked
+        if (code != null) return RecentPlace(code, countryName(code).ifEmpty { code }, r)
+        if (r.profileName.isNotBlank()) return RecentPlace("", r.profileName, r)
+    }
+    return null
+}
+
 @Composable
 private fun ShortcutTiles(onConnect: () -> Unit) {
     val context = LocalContext.current
     val sx = LocalSx.current
     val fastest by FastestRepository.state.collectAsStateWithLifecycle()
     val recent by remember(context) { RecentLocations.get(context) }.items.collectAsStateWithLifecycle()
+    val home by ExitIpChecker.home.collectAsStateWithLifecycle()
     val best = remember(fastest) { fastest.sorted.firstOrNull { it.pingMs != null } }
-    val last = recent.firstOrNull()
+    val last = remember(recent, home.countryCode) { recentPlace(recent, home.countryCode) }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (sx.compact) 10.dp else 12.dp)) {
         ShortcutTile(
             title = "مکان هوشمند",
             icon = Icons.Outlined.Bolt,
-            value = best?.let { countryName(it.countryCode).ifEmpty { it.title } } ?: "پیدا کردن سریع‌ترین",
+            code = best?.countryCode,
+            value = best?.let { countryName(it.countryCode).ifEmpty { it.title } } ?: "یافتن سریع‌ترین",
+            detail = best?.pingMs?.let { "$it ms" },
             accentValue = best != null,
             modifier = Modifier.weight(1f),
         ) {
             best?.let { SelectionActions.apply(context, Target(it.engine, if (it.engine.isXray) "" else it.countryCode, it.profileId), onConnect) }
                 ?: FastestRepository.pingAll(context)
         }
-        val code = last?.countryCode?.ifEmpty { last.selectedCode }
         ShortcutTile(
             title = "مکان اخیر",
             icon = Icons.Outlined.Schedule,
-            value = when {
-                last == null -> "هنوز اتصالی نیست"
-                !code.isNullOrEmpty() -> countryName(code)
-                last.profileName.isNotEmpty() -> last.profileName
-                else -> engineDisplayName(last.engine)
-            },
+            code = last?.code,
+            value = last?.title ?: "هنوز اتصالی نیست",
+            detail = last?.let { engineDisplayName(it.entry.engine) },
             accentValue = last != null,
             modifier = Modifier.weight(1f),
         ) {
-            last?.let { SelectionActions.apply(context, Target(it.engine, it.selectedCode, it.profileId), onConnect) }
+            last?.entry?.let { SelectionActions.apply(context, Target(it.engine, it.selectedCode, it.profileId), onConnect) }
         }
     }
 }
@@ -374,19 +393,31 @@ private fun ShortcutTiles(onConnect: () -> Unit) {
 private fun ShortcutTile(
     title: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    code: String?,
     value: String,
+    detail: String?,
     accentValue: Boolean,
     modifier: Modifier,
     onClick: () -> Unit,
 ) {
     val sx = LocalSx.current
-    Column(modifier.height(84.dp).sxCard(sx).sxClick(onClick).padding(horizontal = 14.dp, vertical = 12.dp)) {
+    Column(modifier.height(if (sx.compact) 100.dp else 108.dp).sxCard(sx).sxClick(onClick).padding(horizontal = 14.dp, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            SText(title, size = 13.sp, color = sx.textDim, modifier = Modifier.weight(1f))
-            Icon(icon, null, tint = sx.textDim, modifier = Modifier.size(18.dp))
+            Icon(icon, null, tint = sx.accent, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            SText(title, size = 13.sp, color = sx.textDim, weight = FontWeight.Medium, modifier = Modifier.weight(1f))
         }
         Spacer(Modifier.weight(1f))
-        SText(value, size = 14.sp, weight = FontWeight.Bold, color = if (accentValue) sx.accent else sx.textDim)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (!code.isNullOrEmpty()) {
+                FlagBox(code, 22.dp)
+                Spacer(Modifier.width(8.dp))
+            }
+            Column(Modifier.weight(1f)) {
+                SText(value, size = 16.sp, weight = FontWeight.Bold, color = if (accentValue) sx.text else sx.textDim)
+                if (!detail.isNullOrEmpty()) SText(detail, size = 11.5.sp, color = sx.textDim, ltr = true)
+            }
+        }
     }
 }
 
@@ -397,13 +428,18 @@ private fun MapCard(location: CurrentLocation, listState: LazyListState) {
     val home by ExitIpChecker.home.collectAsStateWithLifecycle()
     val connected = location.connection == ConnectionState.CONNECTED
     val focus = if (connected) location.displayCode.ifEmpty { home.countryCode } else home.countryCode.ifEmpty { location.displayCode }
-    val view = remember(focus, home.countryCode, connected) { MapView(focus = focus, home = home.countryCode, connected = connected) }
+    val view = remember(focus, home.countryCode, connected) { MapView(focus = focus.uppercase(), home = home.countryCode.uppercase(), connected = connected) }
+    // The country shown in the tooltip lights up: accent while protected, a muted warning tint while not.
+    val highlight = remember(sx, connected) {
+        if (connected) androidx.compose.ui.graphics.lerp(sx.mapLand, sx.accent, if (sx.light) 0.42f else 0.55f)
+        else androidx.compose.ui.graphics.lerp(sx.mapLand, sx.bad, if (sx.light) 0.22f else 0.35f)
+    }
     // Animate only while it can be seen: resumed (screen on, app in front) and not scrolling.
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val scrolling by remember(listState) { derivedStateOf { listState.isScrollInProgress } }
     val active = lifecycle.isAtLeast(Lifecycle.State.RESUMED) && !scrolling
     Box(Modifier.fillMaxWidth().height(if (sx.compact) 150.dp else 168.dp).sxCard(sx).background(sx.mapSea)) {
-        WorldMapCanvas(view, mapMotionFor(sx.anim, sx.mapAnim), active, Modifier.fillMaxSize())
+        WorldMapCanvas(view, mapMotionFor(sx.anim, sx.mapAnim), active, Modifier.fillMaxSize(), dotColor = sx.accent, highlight = highlight)
         MapTooltip(location, home.ip, home.countryCode, home.city, Modifier.align(Alignment.Center).padding(start = 40.dp)) {
             SimorghRuntime.recheckExit(context)
         }
@@ -577,9 +613,10 @@ internal fun RoundIconButtonFlat(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     description: String? = null,
+    tint: androidx.compose.ui.graphics.Color = LocalSx.current.text,
+    iconSize: androidx.compose.ui.unit.Dp = 26.dp,
 ) {
-    val sx = LocalSx.current
     Box(modifier.size(48.dp).clip(CircleShape).sxClick(onClick), contentAlignment = Alignment.Center) {
-        Icon(icon, description, tint = sx.text, modifier = Modifier.size(28.dp))
+        Icon(icon, description, tint = tint, modifier = Modifier.size(iconSize))
     }
 }

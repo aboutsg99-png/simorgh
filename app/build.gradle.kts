@@ -39,8 +39,8 @@ android {
         applicationId = "app.simorgh.vpn"
         minSdk = 24
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.0.0"
 
         buildConfigField("boolean", "TV_MODE", "false")
         buildConfigField(
@@ -160,9 +160,9 @@ android.applicationVariants.configureEach {
         val apkOutput = this as com.android.build.gradle.internal.api.ApkVariantOutputImpl
         val abi = apkOutput.getFilter("ABI") ?: "arm64-v8a"
         if (gpsMockTest && buildType.name == "debug") {
-            apkOutput.outputFileName = "Simorgh-${version}-gps-mock-test-${abi}.apk"
+            apkOutput.outputFileName = "Blackdey-${version}-gps-mock-test-${abi}.apk"
         } else if (buildType.name == "release") {
-            apkOutput.outputFileName = "Simorgh-${version}-${abi}.apk"
+            apkOutput.outputFileName = "Blackdey-${version}-${abi}.apk"
         }
     }
 }
@@ -310,6 +310,7 @@ tasks.withType<Test>().configureEach {
     systemProperty("robolectric.graphicsMode", if (arm && !armNative) "LEGACY" else "NATIVE")
     // Without the Roborazzi Gradle plugin, captureRoboImage only writes PNGs in record mode.
     systemProperty("roborazzi.test.record", "true")
+    providers.gradleProperty("shotsDir").orNull?.let { systemProperty("simorgh.shots.dir", it) }
     // CI seeds the android-all jar into ~/.m2 (with curl retries), so Robolectric finds it locally.
     testLogging {
         showStandardStreams = true

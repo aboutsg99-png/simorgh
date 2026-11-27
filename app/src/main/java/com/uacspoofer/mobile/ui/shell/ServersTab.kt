@@ -96,7 +96,7 @@ import com.uacspoofer.mobile.simorgh.countryName
 import com.uacspoofer.mobile.simorgh.servers.FastRow
 import com.uacspoofer.mobile.simorgh.servers.FastestRepository
 import com.uacspoofer.mobile.simorgh.servers.RowSource
-import com.uacspoofer.mobile.ui.DrawerDestination
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import com.uacspoofer.mobile.ui.FoxySignInScreen
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -106,15 +106,7 @@ import kotlinx.coroutines.withContext
 private enum class ServerTab(val fa: String) { FAST("پرسرعت‌ها"), ALL("همه"), FAV("علاقه‌مندی‌ها"), RECENT("اخیر") }
 
 /** Favourite country codes, persisted. */
-private object Favourites {
-    private const val PREFS = "simorgh_favourites_v1"
-    fun read(context: Context): Set<String> =
-        runCatching { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getStringSet("codes", emptySet())?.toSet() }
-            .getOrNull() ?: emptySet()
-    fun write(context: Context, codes: Set<String>) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putStringSet("codes", codes).apply()
-    }
-}
+private val Favourites = FavouriteCountries
 
 /** A country with every way out we know for it (configs, Mozilla, engine exits). */
 private data class CountryGroup(val code: String, val items: List<FastRow>, val engineOnly: List<EngineMode>) {
@@ -123,7 +115,7 @@ private data class CountryGroup(val code: String, val items: List<FastRow>, val 
 }
 
 @Composable
-internal fun ServersTab(state: ConnectionState, onConnect: () -> Unit, onOpenLegacy: (DrawerDestination) -> Unit, contentPadding: PaddingValues) {
+internal fun ServersTab(state: ConnectionState, onConnect: () -> Unit, onOpen: (Route) -> Unit, onBack: () -> Unit, contentPadding: PaddingValues, initialTab: Int = 0) {
     val context = LocalContext.current
     val sx = LocalSx.current
     val scope = rememberCoroutineScope()
@@ -131,7 +123,7 @@ internal fun ServersTab(state: ConnectionState, onConnect: () -> Unit, onOpenLeg
     val location by LocationState.current.collectAsStateWithLifecycle()
     val account = remember(context) { FoxyAccount.get(context) }
     val accountStatus by account.status.collectAsStateWithLifecycle()
-    var tab by rememberSaveable { mutableStateOf(ServerTab.FAST) }
+    var tab by rememberSaveable { mutableStateOf(ServerTab.entries[initialTab.coerceIn(0, ServerTab.entries.lastIndex)]) }
     var query by rememberSaveable { mutableStateOf("") }
     var engineFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var favourites by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -221,29 +213,11 @@ internal fun ServersTab(state: ConnectionState, onConnect: () -> Unit, onOpenLeg
     Box(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item(key = "title") {
-                ScreenTitle("سرورها و کانفیگ‌ها") {
-                    RoundIconButton(Icons.Outlined.QrCodeScanner, { qrLauncher.launch("image/*") })
-                    Box {
-                        RoundIconButton(Icons.Outlined.Add, { menuOpen = true })
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            DropdownMenuItem(text = { SText("از کلیپ‌بورد") }, leadingIcon = { Icon(Icons.Outlined.ContentPaste, null) }, onClick = {
-                                menuOpen = false
-                                val cm = context.getSystemService(ClipboardManager::class.java)
-                                importText(runCatching { cm?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString() }.getOrNull().orEmpty())
-                            })
-                            DropdownMenuItem(text = { SText("از فایل") }, leadingIcon = { Icon(Icons.Outlined.Description, null) }, onClick = {
-                                menuOpen = false
-                                runCatching { fileLauncher.launch(arrayOf("text/*", "application/octet-stream", "*/*")) }
-                            })
-                            DropdownMenuItem(text = { SText("از تصویر QR") }, leadingIcon = { Icon(Icons.Outlined.QrCodeScanner, null) }, onClick = {
-                                menuOpen = false
-                                runCatching { qrLauncher.launch("image/*") }
-                            })
-                            DropdownMenuItem(text = { SText("مدیریت کانفیگ‌ها") }, leadingIcon = { Icon(Icons.Outlined.MoreVert, null) }, onClick = {
-                                menuOpen = false
-                                onOpenLegacy(DrawerDestination.CONFIGS)
-                            })
-                        }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RoundIconButtonFlat(Icons.AutoMirrored.Outlined.ArrowBack, onBack, description = "بازگشت")
+                    ScreenTitle("سرورها و کانفیگ‌ها", Modifier.weight(1f)) {
+                        RoundIconButton(Icons.Outlined.QrCodeScanner, { runCatching { qrLauncher.launch("image/*") } })
+                        RoundIconButton(Icons.Outlined.Add, { menuOpen = true }, tint = sx.accent)
                     }
                 }
             }
@@ -333,7 +307,7 @@ internal fun ServersTab(state: ConnectionState, onConnect: () -> Unit, onOpenLeg
                         Column(Modifier.fillMaxWidth().sxCard(sx)) {
                             configs.forEachIndexed { i, row ->
                                 if (i > 0) DividerLine()
-                                ConfigRow(row, isActive(location, row), onMore = { onOpenLegacy(DrawerDestination.CONFIGS) }) { applyRow(row) }
+                                ConfigRow(row, isActive(location, row), onMore = { onOpen(Route.CONFIGS) }) { applyRow(row) }
                             }
                         }
                     }
@@ -391,7 +365,7 @@ internal fun ServersTab(state: ConnectionState, onConnect: () -> Unit, onOpenLeg
         // Ping-all FAB, bottom start (left in RTL? start = right) -> place at bottom end like the mockup (left).
         val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         Row(
-            Modifier.align(Alignment.BottomEnd).padding(bottom = bottom + 100.dp, end = 18.dp)
+            Modifier.align(Alignment.BottomEnd).padding(bottom = bottom + 24.dp, end = 18.dp)
                 .clip(RoundedCornerShape(24.dp)).background(sx.accent)
                 .sxClick { if (fastest.running) FastestRepository.cancel() else FastestRepository.pingAll(context) }
                 .padding(horizontal = 22.dp, vertical = 14.dp),
@@ -405,6 +379,20 @@ internal fun ServersTab(state: ConnectionState, onConnect: () -> Unit, onOpenLeg
             Box(Modifier.clip(RoundedCornerShape(14.dp)).background(sx.surfaceHigh).padding(horizontal = 16.dp, vertical = 10.dp)) {
                 SText(toast.orEmpty(), size = 13.sp, maxLines = 2)
             }
+        }
+        if (menuOpen) {
+            AddConfigSheet(
+                onDismiss = { menuOpen = false },
+                onClipboard = {
+                    val cm = context.getSystemService(ClipboardManager::class.java)
+                    importText(runCatching { cm?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString() }.getOrNull().orEmpty())
+                },
+                onFile = { runCatching { fileLauncher.launch(arrayOf("text/*", "application/octet-stream", "*/*")) } },
+                onQr = { runCatching { qrLauncher.launch("image/*") } },
+                onText = { importText(it) },
+                onManage = { onOpen(Route.CONFIGS) },
+                onShare = { onOpen(Route.SHARE) },
+            )
         }
         if (signingIn) {
             Box(Modifier.fillMaxSize().zIndex(10f)) {
@@ -613,30 +601,45 @@ private fun SubscriptionCard(sub: Subscription, busy: Boolean, onRefresh: () -> 
                 Icon(if (busy) Icons.Outlined.Sync else Icons.Outlined.Refresh, "به‌روزرسانی", tint = sx.text)
             }
         }
-        if (info != null && !info.unlimited) {
-            val total = info.total ?: 0L
-            val remaining = info.remaining ?: 0L
+        // Header values first, then usage written in config names (both nullable).
+        val total = sub.totalBytes
+        val remaining = sub.remainingBytes
+        val days = sub.daysLeft()
+        if (total != null || remaining != null || days != null) {
             Spacer(Modifier.height(10.dp))
-            LinearProgressIndicator(
-                progress = { if (total > 0) (remaining.toFloat() / total).coerceIn(0f, 1f) else 0f },
-                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-                color = sx.accent, trackColor = sx.surfaceHigh,
-            )
-            Spacer(Modifier.height(6.dp))
+            sub.usedFraction?.let { used ->
+                LinearProgressIndicator(
+                    progress = { 1f - used },
+                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                    color = sx.accent, trackColor = sx.surfaceHigh,
+                )
+                Spacer(Modifier.height(6.dp))
+            }
             Row {
-                val (rv, ru) = formatBytesFa(remaining)
-                val (tv, tu) = formatBytesFa(total)
-                SText("$rv $ru از $tv $tu باقی‌مانده", size = 12.sp, color = sx.textDim, modifier = Modifier.weight(1f))
-                if (!info.noExpiry) {
-                    val days = (((info.expire ?: 0L) * 1000L - System.currentTimeMillis()) / 86_400_000L)
+                val traffic = when {
+                    remaining != null && total != null -> {
+                        val (rv, ru) = formatBytesFa(remaining); val (tv, tu) = formatBytesFa(total)
+                        "$rv $ru از $tv $tu باقی‌مانده"
+                    }
+                    remaining != null -> formatBytesFa(remaining).let { (v, u) -> "$v $u باقی‌مانده" }
+                    total != null -> formatBytesFa(total).let { (v, u) -> "حجم کل $v $u" }
+                    info != null && info.unlimited -> "حجم نامحدود"
+                    else -> ""
+                }
+                SText(traffic, size = 12.sp, color = sx.textDim, modifier = Modifier.weight(1f))
+                if (days != null) {
                     Icon(Icons.Outlined.CalendarMonth, null, tint = sx.textDim, modifier = Modifier.size(15.dp))
                     Spacer(Modifier.width(4.dp))
                     SText(if (days >= 0) "$days روز تا انقضا" else "منقضی شده", size = 12.sp, color = if (days < 3) sx.warn else sx.textDim)
                 }
             }
-        } else if (info != null) {
+        } else if (info != null && info.unlimited) {
             Spacer(Modifier.height(6.dp))
             SText("حجم نامحدود", size = 12.sp, color = sx.textDim)
+        }
+        sub.lastError?.let {
+            Spacer(Modifier.height(4.dp))
+            SText("آخرین به‌روزرسانی ناموفق: $it", size = 11.sp, color = sx.warn, maxLines = 2)
         }
     }
 }

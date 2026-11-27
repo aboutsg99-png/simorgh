@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Brand assets in one place (Blackdey · بلک دی, red tulip + white arrow on black).
+  Source art: logo mark 724 px square, wordmark (mark + BLACKDEY + بلک دی).
+  Launcher: mipmap-*/ic_launcher.png (legacy, rounded square), ic_launcher_round.png,
+  mipmap-anydpi-v26/ic_launcher*.xml (adaptive: black background + ic_launcher_foreground,
+  ic_launcher_monochrome for themed icons). Notification: drawable-*/ic_stat_uac.png and
+  ic_stat_vpn.png (white silhouette). In-app: drawable-nodpi/brand_mark.png (brand_logo),
+  brand_wordmark.png (about/splash), brand_splash_mark.png (pre-Android 12 start screen).
+  To swap the logo, regenerate these files from new art at the same sizes.
+-->
+<resources>
+    <item name="brand_logo" type="drawable">@drawable/brand_mark</item>
+    <color name="ic_launcher_background">#000000</color>
+    <color name="brand_black">#000000</color>
+    <color name="brand_accent">#B3001B</color>
+    <color name="brand_window_bg">#F4F3EE</color>
+</resources>

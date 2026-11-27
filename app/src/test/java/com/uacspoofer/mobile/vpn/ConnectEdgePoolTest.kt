@@ -92,7 +92,7 @@ class ConnectEdgePoolTest {
         assertEquals("188.114.97.6", applied[2].edge.address)
         assertTrue(applied[1].id.startsWith("cfpool-"))
         assertTrue(applied[1].id.contains("uac-primary-google"))
-        assertEquals("Simorgh primary + Google DNS • 104.21.7.1:443", applied[1].label)
+        assertEquals("Blackdey primary + Google DNS • 104.21.7.1:443", applied[1].label)
         assertEquals(primary.settings.dnsResolverUrl, applied[1].settings.dnsResolverUrl)
         assertEquals(primary.runtimeOptions, applied[1].runtimeOptions)
     }
@@ -237,7 +237,7 @@ class ConnectEdgePoolTest {
 
     private fun candidate(id: String, address: String, port: Int): AdaptiveCandidate = AdaptiveCandidate(
         id = id,
-        label = if (id == "uac-primary-google") "Simorgh primary + Google DNS" else id,
+        label = if (id == "uac-primary-google") "Blackdey primary + Google DNS" else id,
         edge = MciEdge(address, port, id, 2),
         settings = settings,
         runtimeOptions = MciXrayRuntimeOptions.DEFAULT,

@@ -36,7 +36,7 @@ object LogExport {
         val engine = runCatching { engineLabel(EngineModeStore.get(context).mode.value) }.getOrDefault("unknown")
         val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US).format(Date())
         return buildString {
-            appendLine("===== Simorgh log =====")
+            appendLine("===== Blackdey log =====")
             appendLine("App:      ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
             appendLine("Log format: 2")
             appendLine("Android:  ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")

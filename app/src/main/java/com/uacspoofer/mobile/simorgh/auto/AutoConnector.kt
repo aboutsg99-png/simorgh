@@ -64,15 +64,35 @@ object AutoConnector {
 
     fun running(): Boolean = job?.isActive == true
 
-    private const val UNPROVEN_ROUTE_TIMEOUT_MS = 25_000L
+    @Volatile private var attemptDeadlineMs = 0L
 
+    /**
+     * Time left of the attempt Auto is running now, for engines that split their own work across
+     * that budget (Firefox VPN's anti-filter methods). Null outside Auto.
+     */
+    fun remainingMs(nowMs: Long = System.currentTimeMillis()): Long? =
+        if (!running() || attemptDeadlineMs == 0L) null else (attemptDeadlineMs - nowMs).coerceAtLeast(0L)
+
+    /**
+     * A config that did not answer the pre-connect race still gets a real attempt, just a shorter
+     * one. 25 s cut off Xray connects that were still walking their own edge candidates and then
+     * opened the Flux breaker on configs that work; 40 s and no breaker penalty for that cut.
+     */
+    internal const val UNPROVEN_ROUTE_TIMEOUT_MS = 40_000L
+
+    /**
+     * Whole-attempt budgets. Each engine runs its own internal steps (Firefox VPN: pass + edge
+     * ping + up to three HTTP versions per edge; Psiphon on a filtered line often needs over a
+     * minute; WireGuard races its tunnels first), so the earlier 45-80 s limits stopped attempts
+     * that were about to connect.
+     */
     fun timeoutMs(mode: EngineMode): Long = when (mode) {
-        EngineMode.TOR_WEBTUNNEL -> 120_000L
-        EngineMode.UAC_POW -> 80_000L
-        EngineMode.FOXY_FIREFOX -> 50_000L
-        EngineMode.WIREGUARD -> 70_000L
-        EngineMode.UAC_DIRECT -> 45_000L
-        EngineMode.XRAY_CF -> 50_000L
+        EngineMode.TOR_WEBTUNNEL -> 150_000L
+        EngineMode.UAC_POW -> 120_000L
+        EngineMode.FOXY_FIREFOX -> 180_000L
+        EngineMode.WIREGUARD -> 120_000L
+        EngineMode.UAC_DIRECT -> 60_000L
+        EngineMode.XRAY_CF -> 75_000L
     }
 
     fun start(context: Context) {
@@ -102,7 +122,9 @@ object AutoConnector {
                         val raced = runCatching { FluxPicker.raceXray(app, planned, flux.raceSize) }
                             .getOrElse { error -> if (error is CancellationException) throw error; planned to emptySet() }
                         proven = raced.second
-                        raced.first.take(flux.failover).ifEmpty { listOf(null) }
+                        // Every config that answered the race (up to 4) gets a turn, not only the
+                        // first `failover` of the plan.
+                        raced.first.take(maxOf(flux.failover, minOf(proven.size, 4))).ifEmpty { listOf(null) }
                     } else {
                         listOf(null)
                     }
@@ -112,12 +134,12 @@ object AutoConnector {
                         engines.setModeForAuto(mode)
                         route?.let { FluxPicker.apply(app, it) }
                         log("Auto: trying ${mode.id} (${i + 1}/${plan.size})" + (route?.let { " route ${r + 1}/${routes.size} ${it.id.takeLast(8)}" } ?: ""))
-                        runCatching { VpnController.startEngine(app) }
                         // A config that did not answer the race gets a shorter attempt once
                         // another one is known to work here.
-                        val limit = if (route != null && proven.isNotEmpty() && route.id !in proven) {
-                            UNPROVEN_ROUTE_TIMEOUT_MS
-                        } else timeoutMs(mode)
+                        val shortened = route != null && proven.isNotEmpty() && route.id !in proven
+                        val limit = if (shortened) UNPROVEN_ROUTE_TIMEOUT_MS else timeoutMs(mode)
+                        attemptDeadlineMs = System.currentTimeMillis() + limit
+                        runCatching { VpnController.startEngine(app) }
                         val outcome = withTimeoutOrNull(limit) {
                             ConnectionStateStore.state.first {
                                 it == ConnectionState.CONNECTED || it == ConnectionState.ERROR ||
@@ -133,7 +155,10 @@ object AutoConnector {
                             log("Auto: connected with ${mode.id}")
                             return@launch
                         }
-                        route?.let { FluxPicker.recordFailure(app, it, if (outcome == null) FailReason.TIMEOUT else FailReason.OTHER) }
+                        // A timeout we imposed early is not evidence the config is dead.
+                        if (!(shortened && outcome == null)) {
+                            route?.let { FluxPicker.recordFailure(app, it, if (outcome == null) FailReason.TIMEOUT else FailReason.OTHER) }
+                        }
                         log("Auto: ${mode.id} failed (${outcome ?: "timeout"})")
                         stopAndWait(app)
                     }
@@ -146,6 +171,7 @@ object AutoConnector {
                 runCatching { AppLogRepository.warning(LogSource.SERVICE, "Auto failed", error) }
                 ConnectionStateStore.markError()
             } finally {
+                attemptDeadlineMs = 0L
                 mutable.value = AutoProgress()
             }
         }

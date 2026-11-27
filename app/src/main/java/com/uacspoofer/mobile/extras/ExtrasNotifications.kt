@@ -32,7 +32,7 @@ internal object ExtrasNotifications {
         if (manager.getNotificationChannel(CHANNEL_ALERTS) != null) return
         val channel = NotificationChannel(
             CHANNEL_ALERTS,
-            "هشدارهای سیمرغ",
+            "هشدارهای بلک دی",
             NotificationManager.IMPORTANCE_DEFAULT,
         ).apply {
             description = "هشدار حجم ماهانه و اتصال خودکار در وای‌فای ناامن"

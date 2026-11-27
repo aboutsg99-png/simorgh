@@ -98,7 +98,7 @@ internal fun CleanIpScreen(onBack: () -> Unit) {
                 EngineBody(
                     "آی‌پی‌ها مستقیم از خط خودتان سنجیده می‌شوند: اتصال TCP، دست‌دهی TLS با همان SNI کانفیگ، و پاسخ واقعی کلودفلر. " +
                         "آی‌پی‌ای که TCP دارد ولی TLS را فیلتر می‌کند تمیز حساب نمی‌شود." +
-                        if (connected) "\nتونل وصل است؛ اسکن همچنان از خط مستقیم انجام می‌شود (سیمرغ از تونل خودش مستثناست)." else "",
+                        if (connected) "\nتونل وصل است؛ اسکن همچنان از خط مستقیم انجام می‌شود (بلک دی از تونل خودش مستثناست)." else "",
                 )
                 OutlinedTextField(sni, { sni = it.trim().take(253) }, Modifier.fillMaxWidth(), label = { Text("SNI") }, singleLine = true)
                 OutlinedTextField(

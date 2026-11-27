@@ -1708,7 +1708,7 @@ class ProfileLatencyTester(context: Context) {
         // Through the tunnel with remote DNS: HttpURLConnection would resolve the host locally
         // (outside the tunnel, since the app excludes itself from its own VPN).
         com.uacspoofer.mobile.vpn.TunnelHttp.socksOf(proxy)?.let { socks ->
-            return com.uacspoofer.mobile.vpn.TunnelHttp.get(url, socks.hostString, socks.port, timeoutMs, MAX_COUNTRY_BYTES, "Simorgh/SNI-Maker")
+            return com.uacspoofer.mobile.vpn.TunnelHttp.get(url, socks.hostString, socks.port, timeoutMs, MAX_COUNTRY_BYTES, "Blackdey/SNI-Maker")
         }
         val connection = URL(url).openConnection(proxy) as HttpsURLConnection
         return try {
@@ -1716,7 +1716,7 @@ class ProfileLatencyTester(context: Context) {
             connection.readTimeout = timeoutMs
             connection.requestMethod = "GET"
             connection.setRequestProperty("Accept", "application/json,text/plain")
-            connection.setRequestProperty("User-Agent", "Simorgh/SNI-Maker")
+            connection.setRequestProperty("User-Agent", "Blackdey/SNI-Maker")
             val code = connection.responseCode
             check(code in 200..299) { "Country HTTP $code" }
             connection.inputStream.buffered().use { input ->

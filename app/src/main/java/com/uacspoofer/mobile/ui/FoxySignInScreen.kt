@@ -49,9 +49,9 @@ import org.json.JSONObject
  *
  * How it works: Mozilla's own accounts.firefox.com page runs in a WebView in the
  * Firefox-desktop "WebChannel" context. The user types their email, password and any
- * verification / two-step code on Mozilla's page; Simorgh never sees the password. When
+ * verification / two-step code on Mozilla's page; Blackdey never sees the password. When
  * Mozilla finishes, the page sends `fxaccounts:login` over the WebChannel with a session
- * token; Simorgh exchanges it for OAuth tokens scoped to the VPN and destroys the session.
+ * token; Blackdey exchanges it for OAuth tokens scoped to the VPN and destroys the session.
  */
 private const val FXA_CHANNEL_ID = "account_updates"
 private const val CMD_FXA_STATUS = "fxaccounts:fxa_status"
@@ -145,11 +145,14 @@ internal fun FoxySignInScreen(
     message: String?,
     onSessionCaptured: (String) -> Unit,
     onCancel: () -> Unit,
+    /** Sees every page the WebView opens; returns true when it consumed the URL (Mozilla VPN sign-in code). */
+    onUrl: ((String) -> Boolean)? = null,
 ) {
     var webView by remember { mutableStateOf<WebView?>(null) }
     var progress by remember { mutableIntStateOf(0) }
     val currentOnSession by rememberUpdatedState(onSessionCaptured)
     val currentOnCancel by rememberUpdatedState(onCancel)
+    val currentOnUrl by rememberUpdatedState(onUrl)
 
     BackHandler(enabled = true) {
         if (webView?.canGoBack() == true) webView?.goBack() else currentOnCancel()
@@ -223,6 +226,7 @@ internal fun FoxySignInScreen(
                         addJavascriptInterface(bridge, "smgWebChannel")
                         webViewClient = object : WebViewClient() {
                             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                                if (currentOnUrl?.invoke(request.url.toString()) == true) return true
                                 val scheme = request.url.scheme?.lowercase().orEmpty()
                                 if (scheme != "http" && scheme != "https") return true
                                 val host = request.url.host?.lowercase().orEmpty()
@@ -239,6 +243,7 @@ internal fun FoxySignInScreen(
 
                             override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
                                 super.onPageStarted(view, url, favicon)
+                                if (url != null && currentOnUrl?.invoke(url) == true) { runCatching { view.stopLoading() }; return }
                                 runCatching { view.evaluateJavascript(WEBCHANNEL_HOOK_JS, null) }
                             }
 

@@ -5,7 +5,7 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import com.uacspoofer.mobile.profiles.Base64Codec
 
-/** Curve25519 keys for WireGuard, on the BouncyCastle copy Simorgh already ships. */
+/** Curve25519 keys for WireGuard, on the BouncyCastle copy Blackdey already ships. */
 object WgKeys {
     private val random = SecureRandom()
 

@@ -14,7 +14,7 @@ import okhttp3.Request
  * far end of the tunnel.
  *
  * Android's built-in HttpURLConnection (an old OkHttp 2 fork) resolves the hostname with the
- * system resolver even when a SOCKS proxy is set. Simorgh excludes itself from its own VPN,
+ * system resolver even when a SOCKS proxy is set. Blackdey excludes itself from its own VPN,
  * so that resolver query went straight to the ISP: every exit-IP / country check leaked a
  * DNS lookup outside the tunnel. OkHttp 4 hands SOCKS an unresolved address (SOCKS5 domain
  * request) and [NoLocalDns] makes any local lookup fail loudly instead of leaking.
@@ -36,7 +36,7 @@ object TunnelHttp {
         .build()
 
     /** GET [url] through the SOCKS proxy; returns at most [maxBytes] of the body. */
-    fun get(url: String, socksHost: String, socksPort: Int, timeoutMs: Int, maxBytes: Int = 16 * 1024, userAgent: String = "Simorgh/0.1"): String {
+    fun get(url: String, socksHost: String, socksPort: Int, timeoutMs: Int, maxBytes: Int = 16 * 1024, userAgent: String = "Blackdey/0.1"): String {
         val http = client(socksHost, socksPort, timeoutMs)
         try {
             val request = Request.Builder().url(url)

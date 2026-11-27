@@ -18,7 +18,7 @@ enum class FoxyProtocol(val id: String, val version: Int, val label: String) {
     }
 }
 
-/** Engine Simorgh switches to when every Firefox VPN path is unusable. */
+/** Engine Blackdey switches to when every Firefox VPN path is unusable. */
 enum class FoxyFallback(val id: String) {
     PARVAZ("parvaz"),
     SHAHPAR("shahpar"),
@@ -38,6 +38,10 @@ data class FoxyEngineSettings(
     val socksPort: Int = DEFAULT_SOCKS_PORT,
     /** Last HTTP version that passed the throughput check; tried first next time. */
     val lastGoodVersion: Int = 0,
+    /** MASQUE (HTTPS) or a Mozilla VPN WireGuard variant; HTTPS stays the fallback of every choice. */
+    val transport: FoxyTransport = FoxyTransport.MASQUE,
+    /** TLS shaping of the HTTPS (MASQUE) hop against SNI filtering; Auto walks [AntiFilterPlan]. */
+    val antiFilter: AntiFilterMethod = AntiFilterMethod.AUTO,
 ) {
     fun validated(): FoxyEngineSettings = copy(
         countryCode = countryCode.trim().uppercase().take(8),
@@ -66,6 +70,8 @@ class FoxyEngineStore private constructor(context: Context) {
             .putString(KEY_FALLBACK, value.fallback.id)
             .putInt(KEY_PORT, value.socksPort)
             .putInt(KEY_LAST_VERSION, value.lastGoodVersion)
+            .putString(KEY_TRANSPORT, value.transport.id)
+            .putString(KEY_ANTI_FILTER, value.antiFilter.id)
             .apply()
         mutable.value = value
     }
@@ -78,6 +84,8 @@ class FoxyEngineStore private constructor(context: Context) {
         fallback = FoxyFallback.from(prefs.getString(KEY_FALLBACK, null)),
         socksPort = prefs.getInt(KEY_PORT, FoxyEngineSettings.DEFAULT_SOCKS_PORT),
         lastGoodVersion = prefs.getInt(KEY_LAST_VERSION, 0),
+        transport = FoxyTransport.from(prefs.getString(KEY_TRANSPORT, null)),
+        antiFilter = AntiFilterMethod.from(prefs.getString(KEY_ANTI_FILTER, null)),
     ).validated()
 
     companion object {
@@ -87,6 +95,8 @@ class FoxyEngineStore private constructor(context: Context) {
         private const val KEY_FALLBACK = "fallback"
         private const val KEY_PORT = "socks_port"
         private const val KEY_LAST_VERSION = "last_good_version"
+        private const val KEY_TRANSPORT = "transport"
+        private const val KEY_ANTI_FILTER = "anti_filter"
 
         @Volatile private var instance: FoxyEngineStore? = null
 

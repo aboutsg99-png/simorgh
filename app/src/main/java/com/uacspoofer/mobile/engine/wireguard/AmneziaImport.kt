@@ -11,9 +11,9 @@ import org.json.JSONObject
  * server hands out): base64url of Qt's qCompress (4-byte big-endian length + zlib) of a JSON
  * document with one entry per protocol container.
  *
- * What Simorgh can run without new native code:
+ * What Blackdey can run without new native code:
  *  - `amnezia-wireguard`, and `amnezia-awg` when its obfuscation values are neutral -> WireGuard
- *    engine (a real AmneziaWG config with junk packets needs the amneziawg-go core, which Simorgh
+ *    engine (a real AmneziaWG config with junk packets needs the amneziawg-go core, which Blackdey
  *    does not ship; [WgConfigParser] refuses it with a clear message);
  *  - `amnezia-xray` (VLESS/REALITY) -> a `vless://` link for Parvaz.
  * OpenVPN, Cloak, IKEv2 and SOCKS containers are reported as unsupported.
@@ -61,7 +61,7 @@ object AmneziaImport {
         }
         if (wg.isEmpty() && links.isEmpty()) {
             throw WgParseException(
-                "این کلید امنزیا پروتکلی ندارد که سیمرغ اجرا کند (${unsupported.joinToString()}). " +
+                "این کلید امنزیا پروتکلی ندارد که بلک دی اجرا کند (${unsupported.joinToString()}). " +
                     "در سرور امنزیا پروتکل WireGuard یا XRay را فعال کنید.",
             )
         }

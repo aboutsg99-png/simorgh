@@ -494,7 +494,7 @@ class UacVpnService : VpnService() {
         underlyingNetwork: Network,
     ): android.os.ParcelFileDescriptor? {
         return Builder()
-            .setSession("Simorgh Route MTU Probe")
+            .setSession("Blackdey Route MTU Probe")
             .setBlocking(false)
             .setMtu(settings.tunMtu)
             .addAddress(settings.tunAddress, 32)
@@ -1664,6 +1664,7 @@ class UacVpnService : VpnService() {
         runCatching { directCoordinator.stop() }
         runCatching { nativeTunEngine.stop() }
         runCatching { proxyCore.stop() }
+        if (tryMozillaWireGuard(token, settings)) return
         try {
             foxyCoordinator.connect(settings, sessionTunBackend) { candidateSettings ->
                 establishTun(candidateSettings)
@@ -1676,7 +1677,11 @@ class UacVpnService : VpnService() {
             val fallback = FoxyEngineStore.get(this).snapshot().fallback
             val reason = FoxyErrors.persian(error)
             AppLogRepository.warning(LogSource.SERVICE, "[FOXY] connect failed: ${error.message.orEmpty()}", error)
-            if (error is FoxyNotSignedInException || fallback == FoxyFallback.NONE) throw error
+            // Auto walks its own engine list: falling back to another engine inside the
+            // Firefox VPN attempt would report that engine as Firefox VPN and eat the budget.
+            if (error is FoxyNotSignedInException || fallback == FoxyFallback.NONE ||
+                com.uacspoofer.mobile.simorgh.auto.AutoConnector.running()
+            ) throw error
             coroutineContext.ensureActive()
             if (token != generation.get()) throw CancellationException("stale connect generation")
             val target = if (fallback == FoxyFallback.SHAHPAR) "Psiphon/WARP" else "Xray"
@@ -1717,10 +1722,69 @@ class UacVpnService : VpnService() {
         AppLogRepository.success(LogSource.SERVICE, "[FOXY] Firefox VPN active ${foxyCoordinator.activeLabel()}")
     }
 
+    /**
+     * Firefox VPN over Mozilla VPN WireGuard (plain UDP, UDP-over-TCP, Shadowsocks), tried
+     * before the HTTPS (MASQUE) path when the user chose it or Auto runs with a Mozilla VPN
+     * sign-in. Returns false to continue with MASQUE.
+     */
+    private suspend fun tryMozillaWireGuard(token: Long, settings: AdvancedSettingsData): Boolean {
+        val prefs = FoxyEngineStore.get(this).snapshot()
+        val account = com.uacspoofer.mobile.engine.foxy.MozillaVpnAccount.get(this)
+        val auto = com.uacspoofer.mobile.simorgh.auto.AutoConnector.running()
+        val transport = if (auto && prefs.transport == com.uacspoofer.mobile.engine.foxy.FoxyTransport.MASQUE && account.isSignedIn()) {
+            com.uacspoofer.mobile.engine.foxy.FoxyTransport.AUTO
+        } else prefs.transport
+        val order = transport.wireGuardOrder
+        if (order.isEmpty()) return false
+        if (!account.isSignedIn()) {
+            AppLogRepository.info(LogSource.SERVICE, "[FOXY] ${transport.id} needs a Mozilla VPN sign-in; using HTTPS")
+            return false
+        }
+        runCatching { foxyCoordinator.stop() }
+        runCatching { wgCoordinator.stop() }
+        FoxyStatusStore.update { it.copy(phase = FoxyPhase.PREPARING, detail = "دریافت کلید و سرورهای WireGuard موزیلا") }
+        val tunnel = try {
+            val attempts = com.uacspoofer.mobile.engine.foxy.MozillaWgPlanner.attempts(this, order, prefs.countryCode)
+            wgCoordinator.connectAttempts(settings, sessionTunBackend, attempts, { candidate -> establishTun(candidate) }) { attempt ->
+                FoxyStatusStore.update { it.copy(phase = FoxyPhase.TESTING, detail = "آزمایش ${attempt.label}") }
+            }
+        } catch (cancelled: CancellationException) {
+            runCatching { wgCoordinator.stop() }
+            throw cancelled
+        } catch (error: Throwable) {
+            runCatching { wgCoordinator.stop() }
+            AppLogRepository.warning(LogSource.SERVICE, "[FOXY] Mozilla WireGuard failed (${error.message.orEmpty().take(160)}); trying HTTPS")
+            return false
+        }
+        coroutineContext.ensureActive()
+        if (token != generation.get()) {
+            runCatching { wgCoordinator.stop() }
+            throw CancellationException("stale connect generation")
+        }
+        // The WireGuard coordinator runs the session from here (health, stats, SOCKS port).
+        activeEngine = EngineMode.WIREGUARD
+        wgHealthFailures = 0
+        resourcesActive = true
+        if (!ConnectionStateStore.markConnected()) {
+            cleanupRoute()
+            resourcesActive = false
+            return true
+        }
+        FoxyStatusStore.update { it.copy(phase = FoxyPhase.CONNECTED, detail = "وصل شد · Mozilla VPN · ${tunnel.name}", countryCode = tunnel.countryCode.orEmpty()) }
+        runCatching { updateNotification(connected = true) }
+        if (!isProxyMode()) startStatsMonitor(token)
+        startHealthMonitor(token)
+        onSessionUp()
+        AppLogRepository.success(LogSource.SERVICE, "[FOXY] Firefox VPN active over Mozilla WireGuard ${wgCoordinator.activeLabel()}")
+        return true
+    }
+
     /** Engine 6: WireGuard (own configs, Proton VPN, Windscribe) on Xray's userspace outbound. */
     private suspend fun connectWireGuardEngine(token: Long, settings: AdvancedSettingsData) {
         coroutineContext.ensureActive()
         if (token != generation.get()) throw CancellationException("stale connect generation")
+        // A Firefox VPN session that came up over Mozilla WireGuard recovers through Firefox VPN.
+        if (engineModeStore.snapshot().isFoxy) return connectFoxyEngine(token, settings)
         activeEngine = EngineMode.WIREGUARD
         wgHealthFailures = 0
         WgStatusStore.reset()

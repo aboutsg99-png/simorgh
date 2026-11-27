@@ -178,7 +178,7 @@ internal fun XrayLiveFlowButton(accent: Color, onClick: () -> Unit) {
 
 @Composable
 internal fun XrayLiveFlowDialog(visible: Boolean, onDismissRequest: () -> Unit) {
-    AnimatedHomeMetricDialog(
+    com.uacspoofer.mobile.ui.shell.SDialog(
         visible = visible,
         title = homeText("Live path · Xray", "مسیر زنده · Xray"),
         subtitle = homeText("The connect process, step by step", "فرایند اتصال، مرحله به مرحله"),

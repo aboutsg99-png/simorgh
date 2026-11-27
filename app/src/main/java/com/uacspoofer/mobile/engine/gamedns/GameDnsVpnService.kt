@@ -40,6 +40,14 @@ class GameDnsVpnService : VpnService() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) { shutdown(); return START_NOT_STICKY }
+        if (intent?.action == SERVICE_INTERFACE) {
+            // Always-on VPN / boot start resolved to this service (both declare the VpnService
+            // filter): the device tunnel is what always-on means, so hand over to it.
+            startForegroundCompat("")
+            runCatching { com.uacspoofer.mobile.core.VpnController.startEngine(applicationContext) }
+            shutdown()
+            return START_NOT_STICKY
+        }
         val s = GameDnsStore.get(this).snapshot()
         // startForegroundService() obliges startForeground() even when we bail out at once,
         // otherwise Android kills the app (ForegroundServiceDidNotStartInTimeException).
@@ -55,14 +63,14 @@ class GameDnsVpnService : VpnService() {
     private fun start(primary: String, secondary: String?) {
         stopTun()
         val builder = Builder()
-            .setSession("Simorgh Game DNS")
+            .setSession("Blackdey Game DNS")
             .setMtu(1500)
             .addAddress(TUN_ADDRESS, 32)
             .addDnsServer(VIRTUAL_DNS)
             .addRoute(VIRTUAL_DNS, 32)
             .setBlocking(true)
         runCatching { AppRoutingPreferences.applyTo(builder, this) }
-        // Simorgh's own sockets (the forwarders below) must never enter this VPN.
+        // Blackdey's own sockets (the forwarders below) must never enter this VPN.
         runCatching { builder.addDisallowedApplication(packageName) }
         val fd = builder.establish() ?: error("VPN permission missing")
         tun = fd
@@ -134,7 +142,7 @@ class GameDnsVpnService : VpnService() {
         val n: Notification = NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_uac)
             .setContentTitle("DNS بازی روشن است")
-            .setContentText("فقط DNS از سیمرغ می‌گذرد · $primary")
+            .setContentText("فقط DNS از بلک دی می‌گذرد · $primary")
             .setOngoing(true)
             .setContentIntent(open)
             .addAction(0, "خاموش", stop)

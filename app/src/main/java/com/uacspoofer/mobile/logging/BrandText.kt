@@ -13,7 +13,7 @@ internal object BrandText {
         "PoW" to "WARP/Psiphon", "POW" to "WARP/PSIPHON",
         "Aether" to "WARP", "AETHER" to "WARP",
         "Foxy" to "Firefox VPN", "FOXY" to "FIREFOX VPN",
-        "UAC" to "Simorgh",
+        "UAC" to "Blackdey",
     )
     private val regex = Regex(
         map.keys.joinToString("|", prefix = "(?<![A-Za-z0-9_./-])(", postfix = ")(?![A-Za-z0-9_/-])") { Regex.escape(it) },

@@ -54,7 +54,7 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif"
                     android:includeFontPadding="false"
-                    android:text="Simorgh"
+                    android:text="@string/app_name"
                     android:textColor="#FFFFFFFF"
                     android:textSize="18sp"
                     android:textStyle="bold" />

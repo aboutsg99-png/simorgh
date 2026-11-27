@@ -77,6 +77,10 @@ object LocationState {
 
     fun bumpProfiles() { revision.value = revision.value + 1 }
 
+    /** Screenshot tests only: show a fixed location without starting the flows. */
+    @androidx.annotation.VisibleForTesting
+    internal fun setForPreview(location: CurrentLocation) { mutableSelection.value = location.selection; mutableCurrent.value = location }
+
     fun start(context: Context, scope: CoroutineScope) {
         if (started) return
         started = true

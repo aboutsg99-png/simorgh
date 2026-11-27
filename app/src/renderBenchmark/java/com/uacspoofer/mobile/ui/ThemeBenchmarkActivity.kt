@@ -105,15 +105,6 @@ class ThemeBenchmarkActivity : ComponentActivity() {
                                 }
                             }
                         }
-                        if (!noWave) AnimatedDottedWave(
-                            accent = tokens?.waveStart ?: accent,
-                            secondary = tokens?.waveEnd,
-                            motionEnabled = !frozen,
-                            glowBlurPx = tokens?.waveGlowBlur ?: 8f,
-                            glowAlpha = tokens?.waveGlowAlpha ?: 0.72f,
-                            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                                .height((tokens?.waveHeight ?: 32f).dp),
-                        )
                     }
                 }
             }

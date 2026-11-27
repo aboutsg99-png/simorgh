@@ -51,7 +51,7 @@ object CrashReportStore {
         }.toString()
         val whenText = SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US).format(Date(atMs))
         return buildString {
-            appendLine("Simorgh crash report")
+            appendLine("Blackdey crash report")
             appendLine("time=$whenText")
             appendLine("version=$versionName ($versionCode)")
             appendLine("sdk=${Build.VERSION.SDK_INT} ${Build.MANUFACTURER} ${Build.MODEL}")

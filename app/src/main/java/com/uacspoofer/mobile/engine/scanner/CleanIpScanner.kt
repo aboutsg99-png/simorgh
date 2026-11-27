@@ -5,7 +5,7 @@ import kotlin.random.Random
 /*
  * Clean-IP scanner for Cloudflare-fronted configs. Uses a
  * «same clean IP» step; the code is
- * Simorgh's. Pure Kotlin here (ranges, sampling, scoring), unit-tested; the probe is Android.
+ * Blackdey's. Pure Kotlin here (ranges, sampling, scoring), unit-tested; the probe is Android.
  */
 
 /** One measured address: every round of TCP connect, TLS handshake and a real HTTP answer. */

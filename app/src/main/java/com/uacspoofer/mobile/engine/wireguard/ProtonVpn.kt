@@ -24,19 +24,19 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Proton VPN with the user's own Proton account (free or paid). On Simorgh:
+ * Proton VPN with the user's own Proton account (free or paid). On Blackdey:
  *
  * The user signs in on Proton's own page (account.protonvpn.com) in a WebView: the password
- * never reaches Simorgh. With the session cookie the page left, Simorgh makes the same calls
+ * never reaches Blackdey. With the session cookie the page left, Blackdey makes the same calls
  * Proton's dashboard makes for «WireGuard configuration»:
  *  1. `vpn/v2` (the plan's highest tier), `vpn/v2/clientconfig` (feature flags);
  *  2. `vpn/v1/logicals` (servers): tier within the plan, no Secure Core / Tor, a WireGuard key;
  *  3. an Ed25519 key made on the phone, registered with `vpn/v1/certificate` (persistent); the
  *     WireGuard private key is that key's X25519 twin. One key serves every server.
- * No API key, no Simorgh account: only the user's own session. Nothing is uploaded except the
- * public key Proton needs to issue the config. The device name in the dashboard is «Simorgh».
+ * No API key, no Blackdey account: only the user's own session. Nothing is uploaded except the
+ * public key Proton needs to issue the config. The device name in the dashboard is «Blackdey».
  *
- * The requests go out directly (Simorgh is excluded from its own tunnel) and, if that fails
+ * The requests go out directly (Blackdey is excluded from its own tunnel) and, if that fails
  * while a tunnel is up, through the tunnel's local SOCKS.
  */
 object ProtonVpn {
@@ -47,7 +47,7 @@ object ProtonVpn {
     /** The dashboard's own client id; its version is read from the page (it moves every release). */
     private const val CLIENT_ID = "web-vpn-settings"
     const val FALLBACK_VERSION = "5.0.421.0"
-    const val DEVICE_NAME = "Simorgh"
+    const val DEVICE_NAME = "Blackdey"
     const val MAX_SERVERS = 300
     private const val RENEW_BEFORE_MS = 3L * 24 * 3600_000
 

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Simorgh</string>
-    <string name="vpn_channel_name">اتصال سیمرغ</string>
+    <string name="app_name">Blackdey</string>
+    <string name="vpn_channel_name">اتصال بلک دی</string>
     <string name="vpn_channel_description">وضعیت اتصال تونل و پراکسی</string>
     <string name="vpn_connecting_notification">در حال اتصال…</string>
-<string name="vpn_connected_notification">سیمرغ متصل است</string>
+<string name="vpn_connected_notification">بلک دی متصل است</string>
     <string name="notification_engine_connected">%1$s متصل</string>
     <string name="notification_engine_state">متصل</string>
     <string name="proxy_connecting_notification">در حال راه‌اندازی پراکسی SOCKS5…</string>
@@ -23,7 +23,7 @@
     <string name="quick_settings_tile_disconnecting">در حال قطع</string>
     <string name="quick_settings_tile_disconnected">قطع</string>
     <string name="quick_settings_tile_error">اتصال ناموفق</string>
-    <string name="home_widget_label">Simorgh</string>
+    <string name="home_widget_label">Blackdey</string>
     <string name="home_widget_description">اتصال، قطع، کشور و وضعیت</string>
     <string name="settings_backup_title">Backup settings</string>
     <string name="settings_backup_summary">Save theme, language, engines and connection options to a JSON file</string>

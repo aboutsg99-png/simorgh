@@ -515,7 +515,7 @@ internal class SniMakerController(context: Context) : Closeable {
                 "Accept",
                 if (rawUrl == com.uacspoofer.mobile.auto.PatternihaList.API_URL) "application/vnd.github.raw" else "text/plain,*/*",
             )
-            connection.setRequestProperty("User-Agent", "Simorgh/SNI-Maker")
+            connection.setRequestProperty("User-Agent", "Blackdey/SNI-Maker")
             val code = connection.responseCode
             check(code in 200..299) { "Subscription HTTP $code" }
             connection.inputStream.buffered().use { input ->

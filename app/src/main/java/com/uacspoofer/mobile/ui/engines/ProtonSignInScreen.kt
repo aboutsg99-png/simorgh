@@ -46,7 +46,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
  * Proton's own sign-in page (account.protonvpn.com). The password, 2FA and captcha happen on
- * Proton's page; Simorgh only reads the session cookie it leaves, then fetches the account's
+ * Proton's page; Blackdey only reads the session cookie it leaves, then fetches the account's
  * WireGuard servers ([ProtonVpn.sync]). Other sites open in the browser.
  */
 @SuppressLint("SetJavaScriptEnabled")

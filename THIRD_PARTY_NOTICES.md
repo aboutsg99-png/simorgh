@@ -19,8 +19,8 @@ x86_64      494154A10429A43494D14AC1A78F44870206121D6E8AFBEE6ED94CF3CF68999A
 
 ## flag-icons / FlagCDN
 
-- Purpose: bundled ISO country flag PNGs shown by SNI Config Maker
-- License: MIT
+- Purpose: bundled ISO country flags (`res/drawable-nodpi/flag_*.webp`, rasterised from the flag-icons 4x3 SVGs) shown on the home card, location picker, servers, configs and SNI builder
+- License: MIT, Copyright (c) 2013 Panayiotis Lipiridis
 - Bundled license: `third_party/flag-icons-LICENSE.txt`
 - Upstream: https://github.com/lipis/flag-icons
 - Distribution endpoint: https://flagcdn.com/
@@ -48,14 +48,14 @@ x86_64      494154A10429A43494D14AC1A78F44870206121D6E8AFBEE6ED94CF3CF68999A
 - Build instructions: [Zeptun on Android](core/zeptun/README.md)
 - Upstream: https://github.com/Noisemux/zeptun
 
-## Simorgh PoW · WARP core (vendored)
+## Blackdey PoW · WARP core (vendored)
 
 - Purpose: outer WARP / MASQUE / WireGuard hop for the the PoW engine engine
 - License: GNU Affero GPL v3
 - Bundled license and trademark notice: `core/aether/LICENSE` and `core/aether/TRADEMARK.md`
 - Location: `core/aether/` (plus `core/quiche/` for QUIC)
 
-## Simorgh Direct Core
+## Blackdey Direct Core
 
 - Artifact: `libDirect.so` for Engine 4, with a separate Android JNI bridge
 - Source attribution: includes transport primitives adapted from the Aether project

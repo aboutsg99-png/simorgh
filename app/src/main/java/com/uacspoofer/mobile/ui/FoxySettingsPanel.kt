@@ -22,11 +22,16 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.uacspoofer.mobile.ui.shell.sxCard
 import androidx.compose.ui.unit.sp
 import com.uacspoofer.mobile.engine.foxy.FoxyAccountState
 import com.uacspoofer.mobile.engine.foxy.FoxyAccountStatus
@@ -37,19 +42,20 @@ import com.uacspoofer.mobile.engine.foxy.FoxyProtocol
 import com.uacspoofer.mobile.engine.foxy.FoxyUiStatus
 import com.uacspoofer.mobile.ui.theme.UacColors
 
-private val FoxyAccent = Color(0xFFFF9A5C)
+private val FoxyAccent: Color get() = UacColors.DisconnectedBlue
 private val FoxyChipShape = RoundedCornerShape(12.dp)
 
 @Composable
 private fun FoxyCard(content: @Composable () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(ToolCardBrush, ToolCardShape)
-            .border(1.dp, Color.White.copy(alpha = 0.08f), ToolCardShape)
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) { content() }
+    val sx = com.uacspoofer.mobile.ui.shell.LocalSx.current
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.material3.LocalTextStyle provides androidx.compose.material3.LocalTextStyle.current.copy(fontFamily = com.uacspoofer.mobile.ui.shell.Vazir),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().sxCard(sx).padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) { content() }
+    }
 }
 
 /** Account card: who is signed in, monthly quota if Mozilla reports it, sign in / out. */
@@ -92,7 +98,7 @@ internal fun FoxyAccountCard(
                     status.email.isNotBlank() -> homeLtr(status.email)
                     else -> ""
                 }
-                if (sub.isNotBlank()) Text(sub, color = UacColors.TextSecondary, fontSize = 11.sp)
+                if (sub.isNotBlank()) Text(sub, color = UacColors.TextSecondary, fontSize = 12.5.sp)
                 val remaining = status.quotaRemaining
                 val max = status.quotaMax
                 if (remaining != null) {
@@ -100,7 +106,7 @@ internal fun FoxyAccountCard(
                         homeText("Quota left: ", "سهمیه‌ی باقی‌مانده: ") + homeLtr(formatFoxyBytes(remaining)) +
                             (if (max != null) " / " + homeLtr(formatFoxyBytes(max)) else ""),
                         color = UacColors.TextSecondary,
-                        fontSize = 11.sp,
+                        fontSize = 12.5.sp,
                     )
                 }
             }
@@ -127,15 +133,16 @@ internal fun FoxySettingsPanel(
     onProtocol: (FoxyProtocol) -> Unit,
     onFallback: (FoxyFallback) -> Unit,
 ) {
+    FoxyTransportCard()
     FoxyCard {
-        Text(homeText("Connection protocol", "پروتکل اتصال"), color = UacColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(homeText("Connection protocol", "پروتکل اتصال"), color = UacColors.TextPrimary, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
         Text(
             homeText(
                 "Auto tries HTTP/3 (MASQUE over QUIC), then HTTP/2, then HTTP/1.1, and keeps the first one that measures fast.",
                 "خودکار اول HTTP/3 (ماسک روی QUIC)، بعد HTTP/2 و بعد HTTP/1.1 را امتحان می‌کند و اولین مسیری که سرعت واقعی خوبی بدهد را نگه می‌دارد.",
             ),
             color = UacColors.TextSecondary,
-            fontSize = 11.sp,
+            fontSize = 12.5.sp,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             FoxyProtocol.entries.forEach { protocol ->
@@ -147,7 +154,7 @@ internal fun FoxySettingsPanel(
             }
         }
         Spacer(Modifier.height(4.dp))
-        Text(homeText("If Firefox VPN is weak, switch to", "اگر Firefox VPN ضعیف بود، برو سراغ"), color = UacColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(homeText("If Firefox VPN is weak, switch to", "اگر Firefox VPN ضعیف بود، برو سراغ"), color = UacColors.TextPrimary, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             FoxyChip(homeText("Xray", "Xray"), settings.fallback == FoxyFallback.PARVAZ) { onFallback(FoxyFallback.PARVAZ) }
             FoxyChip(homeText("Psiphon/WARP", "Psiphon/WARP"), settings.fallback == FoxyFallback.SHAHPAR) { onFallback(FoxyFallback.SHAHPAR) }
@@ -171,7 +178,7 @@ internal fun FoxySettingsPanel(
                     homeLtr("${FoxyProtocol.labelFor(path.version)}  $latency  $speed") +
                         "  " + if (path.ok) homeText("usable", "قابل استفاده") else homeText("failed", "ناموفق"),
                     color = UacColors.TextSecondary,
-                    fontSize = 11.sp,
+                    fontSize = 12.5.sp,
                 )
             }
         }
@@ -185,20 +192,7 @@ internal fun FoxyChip(
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     onClick: () -> Unit,
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .background(if (selected) FoxyAccent.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.05f), FoxyChipShape)
-            .border(1.dp, if (selected) FoxyAccent.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.10f), FoxyChipShape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 7.dp),
-    ) {
-        if (icon != null) {
-            Icon(icon, contentDescription = null, tint = UacColors.TextPrimary, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(5.dp))
-        }
-        Text(label, color = UacColors.TextPrimary, fontSize = 12.sp)
-    }
+    com.uacspoofer.mobile.ui.shell.SChip(label, selected = selected, icon = icon, onClick = onClick)
 }
 
 internal fun formatFoxyBytes(bytes: Long): String {
@@ -208,5 +202,94 @@ internal fun formatFoxyBytes(bytes: Long): String {
         bytes >= kb * kb -> String.format(java.util.Locale.US, "%.1f MB", bytes / (kb * kb))
         bytes >= kb -> String.format(java.util.Locale.US, "%.0f KB", bytes / kb)
         else -> "$bytes B"
+    }
+}
+
+/**
+ * How Firefox VPN reaches Mozilla: HTTPS (MASQUE, the free Firefox account) or Mozilla VPN
+ * WireGuard (own subscription; plain UDP, over TCP, or inside Shadowsocks). HTTPS stays the
+ * fallback of every WireGuard choice.
+ */
+@Composable
+private fun FoxyTransportCard() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val store = androidx.compose.runtime.remember(context) { com.uacspoofer.mobile.engine.foxy.FoxyEngineStore.get(context) }
+    val settings by store.settings.collectAsState()
+    val account = androidx.compose.runtime.remember(context) { com.uacspoofer.mobile.engine.foxy.MozillaVpnAccount.get(context) }
+    val signedIn by account.signedIn.collectAsState()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var signing by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var busy by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var message by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    val verifier = androidx.compose.runtime.remember(signing) { com.uacspoofer.mobile.engine.foxy.MozillaWg.newVerifier() }
+    FoxyCard {
+        Text(homeText("Route to Mozilla", "مسیر رسیدن به موزیلا"), color = UacColors.TextPrimary, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
+        Text(
+            homeText(
+                "WireGuard modes need a Mozilla VPN subscription. If they fail, HTTPS is used.",
+                "حالت‌های WireGuard اشتراک Mozilla VPN می‌خواهند. اگر وصل نشوند، HTTPS امتحان می‌شود.",
+            ),
+            color = UacColors.TextSecondary,
+            fontSize = 12.5.sp,
+        )
+        // WireGuard modes only make sense with a Mozilla VPN sign-in; without one HTTPS is the route.
+        com.uacspoofer.mobile.engine.foxy.FoxyTransport.entries
+            .filter { signedIn || it == com.uacspoofer.mobile.engine.foxy.FoxyTransport.MASQUE }
+            .forEach { t ->
+                val selected = settings.transport == t ||
+                    (!signedIn && t == com.uacspoofer.mobile.engine.foxy.FoxyTransport.MASQUE)
+                FoxyChip(label = t.fa, selected = selected, onClick = { store.update { it.copy(transport = t) } })
+            }
+        Spacer(Modifier.height(4.dp))
+        Text(homeText("Anti-filter (HTTPS)", "ضدفیلتر (HTTPS)"), color = UacColors.TextPrimary, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
+        Text(
+            homeText(
+                "Auto tries plain TLS, a fragmented handshake and a clean edge IP, and remembers what worked on this network.",
+                "خودکار TLS ساده، دست‌دادن تکه‌تکه و IP تمیز را امتحان می‌کند و روش موفق را برای همین شبکه به خاطر می‌سپارد.",
+            ),
+            color = UacColors.TextSecondary,
+            fontSize = 12.5.sp,
+        )
+        com.uacspoofer.mobile.engine.foxy.AntiFilterMethod.entries.chunked(3).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                row.forEach { m ->
+                    FoxyChip(label = homeText(m.en, m.fa), selected = settings.antiFilter == m, onClick = { store.update { it.copy(antiFilter = m) } })
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (signedIn) {
+                Text(homeText("Mozilla VPN: signed in", "Mozilla VPN: وارد شده‌ای"), color = UacColors.TextSecondary, fontSize = 12.sp)
+                FoxyChip(homeText("Sign out", "خروج"), false) { account.signOut() }
+            } else {
+                FoxyChip(homeText("Sign in to Mozilla VPN", "ورود به Mozilla VPN"), false) { message = null; signing = true }
+            }
+        }
+    }
+    if (signing) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { signing = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            FoxySignInScreen(
+                startUrl = com.uacspoofer.mobile.engine.foxy.MozillaWg.loginUrl(verifier),
+                busy = busy,
+                message = message,
+                onSessionCaptured = { },
+                onCancel = { signing = false },
+                onUrl = { url ->
+                    val code = com.uacspoofer.mobile.engine.foxy.MozillaWg.codeFromRedirect(url)
+                    if (code != null && !busy) {
+                        busy = true
+                        scope.launch {
+                            val result = account.completeLogin(code, verifier)
+                            busy = false
+                            result.onSuccess { signing = false }.onFailure { message = it.message ?: "ورود ناموفق بود" }
+                        }
+                    }
+                    code != null
+                },
+            )
+        }
     }
 }
